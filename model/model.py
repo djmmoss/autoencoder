@@ -124,6 +124,14 @@ def print_biases(data_path, n_biases):
                 f.flush()
                 f.close()
 
+def print_network(L1, L2, L3):
+    f = open(data_path + "net.h", "w")
+    f.write("#define LAYER_1 " + str(L1) + "\n")
+    f.write("#define LAYER_2 " + str(L2) + "\n")
+    f.write("#define LAYER_3 " + str(L3) + "\n")
+    f.flush()
+    f.close()
+
 def  make_data(data, window_size):
         X = []
 
@@ -234,7 +242,7 @@ with tf.Session() as sess:
         # y_train = x_train
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(10000):
+        for i in range(2000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -259,23 +267,25 @@ with tf.Session() as sess:
         # Save the Biases to a file
         print_biases(data_path, n_biases)
 
+        print_network(Layer_1, Layer_2, Layer_3)
+
         # Display some Results
-        out_n = p_pred_n[0].reshape([28,28])
-        exp = y_test[0].reshape([28,28])
-        exp_n = x_test[0].reshape([28,28])
+        #out_n = p_pred_n[0].reshape([28,28])
+        #exp = y_test[0].reshape([28,28])
+        #exp_n = x_test[0].reshape([28,28])
 
-        fig = figure(1)
+        #fig = figure(1)
 
-        ax1 = fig.add_subplot(311)
-        ax1.imshow(exp, cmap=plt.get_cmap('gray_r'))
-        ax1.grid(True)
+        #ax1 = fig.add_subplot(311)
+        #ax1.imshow(exp, cmap=plt.get_cmap('gray_r'))
+        #ax1.grid(True)
 
-        ax2 = fig.add_subplot(312)
-        ax2.imshow(out_n, cmap=plt.get_cmap('gray_r'))
-        ax2.grid(True)
+        #ax2 = fig.add_subplot(312)
+        #ax2.imshow(out_n, cmap=plt.get_cmap('gray_r'))
+        #ax2.grid(True)
 
-        ax3 = fig.add_subplot(313)
-        ax3.imshow(exp_n, cmap=plt.get_cmap('gray_r'))
-        ax3.grid(True)
+        #ax3 = fig.add_subplot(313)
+        #ax3.imshow(exp_n, cmap=plt.get_cmap('gray_r'))
+        #ax3.grid(True)
 
-        show()
+        #show()

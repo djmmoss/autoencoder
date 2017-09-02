@@ -1,6 +1,7 @@
 all: hls
 
 model:
+	mkdir -p data
 	python model.py
 
 hls: model
