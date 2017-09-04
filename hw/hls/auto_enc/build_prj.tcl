@@ -10,8 +10,7 @@ add_files -tb auto_enc_test.cpp -cflags "-I[file normalize ../nnet_lib]"
 add_files -tb data
 open_solution -reset "solution1"
 set_part {xc7k410tffg900-2}
-create_clock -period 10 -name default
-#source "./fir_hls_prj/solution1/directives.tcl"
+create_clock -period 5 -name default
 csim_design
 csynth_design
 #cosim_design

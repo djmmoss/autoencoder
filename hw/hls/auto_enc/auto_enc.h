@@ -25,18 +25,20 @@
 #include "ap_fixed.h"
 #include "hls_stream.h"
 
+#define W_WIDTH 16
+#define I_WIDTH 8
+
+typedef ap_fixed<W_WIDTH,I_WIDTH> interface_t;
 
 typedef ap_fixed<32,10> accum_t;
-typedef ap_fixed<32,10> input_t;
-typedef ap_fixed<32,10> result_t;
-typedef ap_fixed<32,10> weight_t;
-typedef ap_fixed<32,10> bias_t;
+typedef ap_fixed<16,8> weight_t;
+typedef ap_fixed<16,8> bias_t;
 
-typedef ap_fixed<32,10> layer1_t;
-typedef ap_fixed<32,10> layer2_t;
-typedef ap_fixed<32,10> layer3_t;
-typedef ap_fixed<32,10> layer4_t;
-typedef ap_fixed<32,10> layer5_t;
+typedef ap_fixed<16,8> layer1_t;
+typedef ap_fixed<16,8> layer2_t;
+typedef ap_fixed<16,8> layer3_t;
+typedef ap_fixed<16,8> layer4_t;
+typedef ap_fixed<16,8> layer5_t;
 
 
 /*
@@ -53,15 +55,24 @@ typedef float layer4_t;
 typedef float layer5_t;
 */
 
-#define N_LAYER_IN 32
-#define N_LAYER_OUT 32
+short float2short(float f);
+float short2float(short s, int i_width);
+short fxd2short(interface_t val);
+interface_t short2fxd(short val);
+
+template <int N_IN>
+void fxd2short_stream(hls::stream<interface_t> &in, hls::stream<short> &out);
+
+template <int N_IN>
+void short2fxd_stream(hls::stream<short> &in, hls::stream<interface_t> &out);
 
 // Prototype of top level function for C-synthesis
 void auto_enc(
-      hls::stream<input_t> &data,
-      hls::stream<result_t> &res,
+      hls::stream<short> &data,
+      hls::stream<short> &res,
       unsigned short &const_size_in,
       unsigned short &const_size_out);
+
 
 
 #endif

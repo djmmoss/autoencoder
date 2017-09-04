@@ -23,6 +23,7 @@
 
 #include "auto_enc.h"
 #include "nnet_helpers.h"
+#include "data/net.h"
 
 template <class dataType, unsigned int samples, unsigned int window>
 int read_file(const char * filename, dataType data[samples][window]) {
@@ -36,13 +37,13 @@ int read_file(const char * filename, dataType data[samples][window]) {
 	   for (int ii = 0; ii < samples; ii++){
 		   for (int jj = 0; jj < window-1; jj++) {
 			   if (fscanf(fp, "%f,", &newval) != 0){
-			   	       data[ii][jj] = newval;
+			   	       data[ii][jj] = float2short(newval);
 			   	     } else {
 			   	       return -2;
 			   	     }
 		   }
 		   if (fscanf(fp, "%f\n", &newval) != 0){
-			   data[ii][window-1] = newval;
+			   data[ii][window-1] = float2short(newval);
 		   } else {
 			   return -2;
 		   }
@@ -51,43 +52,85 @@ int read_file(const char * filename, dataType data[samples][window]) {
 	   return 0;
 }
 
+template <class dataType, unsigned int samples, unsigned int window>
+int write_binary_file(const char * filename, dataType data[samples][window]) {
+	  FILE *fp;
+	  fp = fopen(filename, "wb");
+	  if (fp == 0) {
+	    return -1;
+	  }
+
+	  // Write data to file
+	  for (int ii = 0; ii < samples; ii++){
+		   for (int jj = 0; jj < window-1; jj++) {
+			dataType newval = (dataType) data[ii][jj];
+			fwrite(&newval, sizeof(short), 1, fp);
+		   }
+	   }
+	   fclose(fp);
+	   return 0;
+}
+
+template <class dataType, unsigned int samples, unsigned int window>
+int read_binary_file(const char * filename, dataType data[samples][window]) {
+	  FILE *fp;
+	  fp = fopen(filename, "rb");
+	  if (fp == 0) {
+	    return -1;
+	  }
+	  // Write data to file
+	   for (int ii = 0; ii < samples; ii++){
+		   for (int jj = 0; jj < window-1; jj++) {
+			dataType newval;
+			fread(&newval, sizeof(short), 1, fp);
+			data[ii][jj] = newval;
+		   }
+	   }
+	   fclose(fp);
+	   return 0;
+}
 
 int main(int argc, char **argv)
 {
   // DATA FROM UDACITY TENSORFLOW CLASS
   // 1-Layer test
 
-  input_t  data[10][32];
-  float answer[10][32];
+  short  result[10][LAYER_1];
+  short  data[10][LAYER_1];
+  short expected[10][LAYER_1];
 
   // Load data from file
   int rval = 0;
-  rval = read_file<input_t, 10, 32>("data/data.out", data);
-  rval = read_file<float, 10, 32>("data/expected.out", answer);
+  rval = read_file<short, 10, LAYER_1>("data/data.out", data);
+  rval = read_file<short, 10, LAYER_1>("data/expected.out", expected);
+  rval = write_binary_file<short, 10, LAYER_1>("data/test_in.bin", data);
 
   // Run the basic neural net block
   unsigned short size_in, size_out;
   int err_cnt = 0;
 
   for (int isample=0; isample < 10; isample++) {
-	  hls::stream<input_t> data_str;
-  	  for (int idat=0; idat < 32; idat++) {
+	  hls::stream<short> data_str;
+  	  for (int idat=0; idat < LAYER_1; idat++) {
   		  data_str << data[isample][idat];
   	  }
 
-  	  hls::stream<result_t> res_str;
+  	  hls::stream<short> res_str;
   	  auto_enc(data_str, res_str, size_in, size_out);
 
   	  // Print result vector
-  	  float err, curr_data;
-  	  for (int ii = 0; ii < 32; ii++) {
+  	  float err;
+      short curr_data;
+  	  for (int ii = 0; ii < LAYER_1; ii++) {
   		  curr_data = res_str.read();
-  		  err = curr_data-answer[isample][ii];
-  		  std::cout << " Expected: " << answer[isample][ii] << "   Received: " << curr_data << "  ErrVal: " << err << std::endl;
+          result[isample][ii] = curr_data;
+  		  err = short2float(curr_data, I_WIDTH) - short2float(expected[isample][ii], 1);
+  		  std::cout << " Expected: " << short2float(expected[isample][ii], 1) << "   Received: " << short2float(curr_data, I_WIDTH) << "  ErrVal: " << err << std::endl;
   		  if (abs(err) > 0.5) err_cnt++;
   	  }
   }
-  std::cout<< err_cnt << std::endl;
+
+  rval = write_binary_file<short, 10, LAYER_1>("data/test_out.bin", result);
   return err_cnt;
 }
 

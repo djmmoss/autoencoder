@@ -72,7 +72,7 @@ module noc_block_autoenc_tb();
     /********************************************************
     ** Test 5 -- Test sequence
     ********************************************************/
-    
+
     `TEST_CASE_START("Test Neural Net Data");
     // Run the test twice to make sure we can recreate results
 

@@ -149,9 +149,9 @@ dataset_type = 0
 # Noise Types:
 #  0 : None
 #  1 : Additive Isotripic Gaussian
-#  2 : Maksing
+#  2 : Masking
 #  3 : Salt and Pepper
-noise_type = 0
+noise_type = 2
 
 if dataset_type == 0:
         # AutoEncoder will look like this:
