@@ -131,6 +131,13 @@ def print_network(L1, L2, L3):
     f.write("#define LAYER_3 " + str(L3) + "\n")
     f.flush()
     f.close()
+    
+    f = open(data_path + "noc_block_autoenc_tb.vh", "w")
+    f.write("`define TEST_SPP " + str(L1) + "\n")
+    f.write("`define TEST_TRL 2\n")
+    f.write("`define TEST_ERR 32\n")
+    f.flush()
+    f.close()
 
 def  make_data(data, window_size):
         X = []

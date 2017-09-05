@@ -93,6 +93,8 @@ void auto_enc(
     // Remove ap ctrl ports (ap_start, ap_ready, ap_idle, etc) since we only use the AXI-Stream ports
     #pragma HLS INTERFACE ap_ctrl_none port=return
 
+    #pragma HLS DATAFLOW
+
     // Connect size indicators
     #pragma HLS INTERFACE ap_none port=const_size_in
     #pragma HLS INTERFACE ap_none port=const_size_out
