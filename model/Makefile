@@ -1,4 +1,4 @@
-all: hls
+all: model
 
 model:
 	mkdir -p data

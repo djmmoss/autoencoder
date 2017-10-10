@@ -5,8 +5,8 @@
 ############################################################
 open_project -reset auto_enc_prj
 set_top auto_enc
-add_files auto_enc.cpp -cflags "-I[file normalize ../nnet_lib]"
-add_files -tb auto_enc_test.cpp -cflags "-I[file normalize ../nnet_lib]"
+add_files auto_enc.cpp
+add_files -tb auto_enc_test.cpp
 add_files -tb data
 open_solution -reset "solution1"
 set_part {xc7k410tffg900-2}

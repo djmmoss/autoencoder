@@ -80,6 +80,7 @@ void compute_small_layer(
     weight_T  weights[N_IN][N_OUT],
     bias_T    biases[N_OUT])
 {
+	#pragma HLS PIPELINE II=1
     data_T data_cache;
     acc_T acc[N_OUT];
 
@@ -110,25 +111,25 @@ void compute_medium_layer(
     weight_T  weights[N_IN][N_OUT],
     bias_T    biases[N_OUT])
 {
+	#pragma HLS PIPELINE II=1
     data_T data_cache;
     acc_T acc[N_OUT];
 
-    #pragma HLS ARRAY_PARTITION variable=weights cyclic factor=8 dim=2
-    #pragma HLS ARRAY_PARTITION variable=acc cyclic factor=8 dim=1
+    #pragma HLS ARRAY_PARTITION variable=weights complete dim=2
+    #pragma HLS ARRAY_PARTITION variable=acc complete dim=1
 
     // Optional... Cuts down on a few of the BRAMs
     #pragma HLS RESOURCE variable=acc core=RAM_2P_LUTRAM
 
     Reset: for(int iacc = 0; iacc < N_OUT; iacc++) {
-    #pragma HLS UNROLL factor=8
+    #pragma HLS UNROLL
         acc[iacc] = 0;
     }
 
     NewInput: for(int ii = 0; ii < N_IN; ii++) {
+    #pragma HLS PIPELINE
         data_cache = data.read();
         Product: for(int jj = 0; jj < N_OUT; jj++) {
-        #pragma HLS UNROLL factor=8
-        #pragma HLS PIPELINE
             acc[jj] += data_cache * weights[ii][jj];
         }
     }

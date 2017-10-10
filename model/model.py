@@ -32,7 +32,17 @@ def make_sine(noise_type, num, window):
         n = np.linspace(0, 20.0, num)
 
         # Make the sine wave...
-        s = np.sin(2*np.pi*n)
+        a = 1
+        w = 2*np.pi
+        wt = w*n
+        p_phase = w*(n -  np.floor(n))
+
+        i = a*np.cos(0)
+        q = a*np.sin(0)
+        s = i*np.cos(wt) - q*np.sin(wt)
+
+        #s = a*np.cos(2*np.pi*n)
+
         s_n = apply_noise(noise_type, s)
 
         n_data = make_data(s_n, window)
@@ -101,7 +111,7 @@ def print_weights(data_path, n_weights):
                 weights = n_weights[w].eval()
                 shp = weights.shape
                 f = open(data_path + str(w) + ".h", "w")
-                f.write("weight_t " + str(w) + "[" + str(shp[0]) + "][" + str(shp[1]) + "] = {{")
+                f.write("static weight_t " + str(w) + "[" + str(shp[0]) + "][" + str(shp[1]) + "] = {{")
                 for i in range(shp[0]-1):
                         for j in range(shp[1]-1):
                                 f.write(str(weights[i][j]) + ",")
@@ -117,7 +127,7 @@ def print_biases(data_path, n_biases):
                 biases = n_biases[b].eval()
                 shp = biases.shape
                 f = open(data_path + str(b) + ".h", "w")
-                f.write("bias_t " + str(b) + "[" + str(shp[0]) + "] = {")
+                f.write("static bias_t " + str(b) + "[" + str(shp[0]) + "] = {")
                 for j in range(shp[0]-1):
                         f.write(str(biases[j]) + ",")
                 f.write(str(biases[shp[0]-1]) + "};\n")
@@ -135,9 +145,15 @@ def print_network(L1, L2, L3):
 def  make_data(data, window_size):
         X = []
 
-        win_size = window_size
+        win_size = int(window_size)
         for i in range(len(data)-win_size):
-                X.append(data[i:i+win_size])
+                win = data[i:i+win_size]
+                fft_win = np.fft.fft(win)
+                r_fft_win = np.real(fft_win)
+                i_fft_win = np.imag(fft_win)
+                c_fft_win = np.concatenate((r_fft_win, i_fft_win))
+                X.append(win)
+                #X.append(c_fft_win)
 
         return np.array(X)
 
@@ -151,7 +167,7 @@ dataset_type = 0
 #  1 : Additive Isotripic Gaussian
 #  2 : Masking
 #  3 : Salt and Pepper
-noise_type = 2
+noise_type = 0
 
 if dataset_type == 0:
         # AutoEncoder will look like this:
@@ -161,9 +177,9 @@ if dataset_type == 0:
         # * Layer4: 16
         # * Layer5: 32
         # * Layer6: 64
-        Layer_1 = 64
-        Layer_2 = 32
-        Layer_3 = 16
+        Layer_1 = 32
+        Layer_2 = 16
+        Layer_3 = 8
         window = Layer_1
         num = 2000
         (x_train, y_train, x_test, y_test) = make_sine(noise_type, num, window)
@@ -182,19 +198,19 @@ elif dataset_type == 1:
 
 
 n_weights = {
-        'w_l1' : tf.Variable(tf.truncated_normal([Layer_1,Layer_1], stddev=0.1), name="w_l1"),
+        #'w_l1' : tf.Variable(tf.truncated_normal([Layer_1,Layer_1], stddev=0.1), name="w_l1"),
         'w_l2' : tf.Variable(tf.truncated_normal([Layer_1,Layer_2], stddev=0.1), name="w_l2"),
         'w_l3' : tf.Variable(tf.truncated_normal([Layer_2,Layer_3], stddev=0.1), name="w_l3"),
-        'w_l4' : tf.Variable(tf.truncated_normal([Layer_3,Layer_3], stddev=0.1), name="w_l4"),
+        #'w_l4' : tf.Variable(tf.truncated_normal([Layer_3,Layer_3], stddev=0.1), name="w_l4"),
         'w_l5' : tf.Variable(tf.truncated_normal([Layer_3,Layer_2], stddev=0.1), name="w_l5"),
         'w_l6' : tf.Variable(tf.truncated_normal([Layer_2,Layer_1], stddev=0.1), name="w_l6"),
 }
 
 n_biases = {
-        'b_l1' : tf.Variable(tf.constant(0.1, shape=[Layer_1]), name="b_l1"),
+        #'b_l1' : tf.Variable(tf.constant(0.1, shape=[Layer_1]), name="b_l1"),
         'b_l2' : tf.Variable(tf.constant(0.1, shape=[Layer_2]), name="b_l2"),
         'b_l3' : tf.Variable(tf.constant(0.1, shape=[Layer_3]), name="b_l3"),
-        'b_l4' : tf.Variable(tf.constant(0.1, shape=[Layer_3]), name="b_l4"),
+        #'b_l4' : tf.Variable(tf.constant(0.1, shape=[Layer_3]), name="b_l4"),
         'b_l5' : tf.Variable(tf.constant(0.1, shape=[Layer_2]), name="b_l5"),
         'b_l6' : tf.Variable(tf.constant(0.1, shape=[Layer_1]), name="b_l6"),
 }
@@ -204,11 +220,11 @@ x = tf.placeholder(tf.float32, [None, Layer_1])
 y = tf.placeholder(tf.float32, [None, Layer_1])
 
 # Layer 1
-a_l1 = tf.matmul(x, n_weights["w_l1"]) + n_biases["b_l1"]
-r_l1 = tf.nn.relu(a_l1)
+#a_l1 = tf.matmul(x, n_weights["w_l1"]) + n_biases["b_l1"]
+#r_l1 = tf.nn.relu(a_l1)
 
 # Layer 2
-a_l2 = tf.matmul(r_l1, n_weights["w_l2"]) + n_biases["b_l2"]
+a_l2 = tf.matmul(x, n_weights["w_l2"]) + n_biases["b_l2"]
 r_l2 = tf.nn.relu(a_l2)
 
 # Layer 3
@@ -216,11 +232,11 @@ a_l3 = tf.matmul(r_l2, n_weights["w_l3"]) + n_biases["b_l3"]
 r_l3 = tf.nn.relu(a_l3)
 
 # Layer 4
-a_l4 = tf.matmul(r_l3, n_weights["w_l4"]) + n_biases["b_l4"]
-r_l4 = tf.nn.relu(a_l4)
+#a_l4 = tf.matmul(r_l3, n_weights["w_l4"]) + n_biases["b_l4"]
+#r_l4 = tf.nn.relu(a_l4)
 
 # Layer 5
-a_l5 = tf.matmul(r_l4, n_weights["w_l5"]) + n_biases["b_l5"]
+a_l5 = tf.matmul(r_l3, n_weights["w_l5"]) + n_biases["b_l5"]
 r_l5 = tf.nn.relu(a_l5)
 
 # Layer 6
@@ -242,7 +258,7 @@ with tf.Session() as sess:
         # y_train = x_train
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(2000):
+        for i in range(20000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -255,11 +271,13 @@ with tf.Session() as sess:
 
         data_path = "data/"
 
+        l2norm = np.sum(np.square(p_pred_n - x_test), 1)
+
         # Print the Dataset to a file
-        np.savetxt(data_path + 'data.out', x_test, delimiter=',')
+        np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
 
         # Print out the expected predictions
-        np.savetxt(data_path + 'expected.out', p_pred_n, delimiter=',')
+        np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
 
         # Save the Weight to a file
         print_weights(data_path, n_weights)
