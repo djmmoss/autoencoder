@@ -5,6 +5,7 @@
 `include "sim_exec_report.vh"
 `include "sim_clks_rsts.vh"
 `include "sim_rfnoc_lib.svh"
+`include "noc_block_autoenc_tb.vh"
 
 module noc_block_autoenc_tb();
   `TEST_BENCH_INIT("noc_block_autoenc",`NUM_TEST_CASES,`NS_PER_TICK);
@@ -15,7 +16,9 @@ module noc_block_autoenc_tb();
   `RFNOC_SIM_INIT(NUM_CE, NUM_STREAMS, BUS_CLK_PERIOD, CE_CLK_PERIOD);
   `RFNOC_ADD_BLOCK(noc_block_autoenc, 0);
 
-  localparam SPP = 256; // Samples per packet
+  localparam SPP = `TEST_SPP;
+  localparam TRL = `TEST_TRL;
+  localparam ERR = `TEST_ERR;
 
   /********************************************************
   ** Verification
@@ -50,8 +53,8 @@ module noc_block_autoenc_tb();
     ** Test 3 -- Connect RFNoC blocks
     ********************************************************/
     `TEST_CASE_START("Connect RFNoC blocks");
-    `RFNOC_CONNECT(noc_block_tb,noc_block_autoenc,S32,SPP);
-    `RFNOC_CONNECT(noc_block_autoenc,noc_block_tb,S32,SPP);
+    `RFNOC_CONNECT(noc_block_tb,noc_block_autoenc,S16,SPP);
+    `RFNOC_CONNECT(noc_block_autoenc,noc_block_tb,S16,SPP);
     `TEST_CASE_DONE(1);
 
     /********************************************************
@@ -72,57 +75,56 @@ module noc_block_autoenc_tb();
     /********************************************************
     ** Test 5 -- Test sequence
     ********************************************************/
-
+    
     `TEST_CASE_START("Test Neural Net Data");
     // Run the test twice to make sure we can recreate results
-
-    /*
+    
     fork
       begin
         real data_float;
         integer data_int;
         logic [15:0] data_logic;
-        data_file = $fopen("mnist_validation_data_784x1.dat", "r");
+	logic [7:0] part1, part2;
+        data_file = $fopen("test_in.bin", "rb");
         `ASSERT_FATAL(data_file != 0, "Data file could not be opened");
         if (data_file == 0) begin
           $display("data_file handle was NULL");
           $finish;
         end
         $display("Send data from text file");
-        while (!$feof(data_file)) begin
-          scan_file = $fscanf(data_file, "%f", data_float);
-          data_int = data_float * (2**10);
-          data_logic = data_int;
-          if (!$feof(data_file))
-            tb_streamer.push_word({data_logic}, 0 );
-          else
+        for (int i = 0; i < SPP*TRL; i++) begin
+          scan_file = $fread(part2, data_file);
+          scan_file = $fread(part1, data_file);
+	  data_logic = {part1, part2};
+          if ( i == (SPP*TRL - 1))
             tb_streamer.push_word({data_logic}, 1 );
+          else
+            tb_streamer.push_word({data_logic}, 0 );
           $sformat(s, "Pushing word: %f, %d", data_float, data_int);
           //$display(s);
         end
         $fclose(data_file);
       end
       begin
-        logic last;
+        logic last, p_fail, n_fail;
         logic [15:0] res_logic;
-        shortint res_int;
-        real result_float;
-        real reference_float;
-        data_file_ref = $fopen("mnist_validation_output_10x1.dat", "r");
+	logic [15:0] ref_logic;
+	logic [7:0] part1, part2;
+        data_file_ref = $fopen("test_out.bin", "rb");
         `ASSERT_FATAL(data_file_ref != 0, "Output data file could not be opened");
-        for (int ii = 0; ii < 10; ii++) begin
+        for (int ii = 0; ii < SPP*TRL; ii++) begin
           tb_streamer.pull_word({res_logic}, last);
-          res_int = res_logic;
-          result_float =  res_int / 2.0**8;
-          $sformat(s, "Received Value: %f, %h", result_float, res_logic); $display(s);
-          scan_file = $fscanf(data_file_ref, "%f\n", reference_float);
-          $sformat(s, "Incorrect output value received! Expected: %0f, Received: %0f", reference_float, result_float);
-          `ASSERT_ERROR((result_float-reference_float) < 0.1 && (reference_float-result_float) > -0.1, s);
+          scan_file = $fread(part2, data_file_ref);
+          scan_file = $fread(part1, data_file_ref);
+	  ref_logic = {part1, part2};
+          p_fail = ($signed(ref_logic) - $signed(res_logic)) > ERR;
+          n_fail = ($signed(ref_logic) - $signed(res_logic)) < -ERR;
+          $sformat(s, "Received Value: %h, Exp: %h, Err: %h, PF: %b, NF: %b", res_logic, ref_logic, ref_logic - res_logic, p_fail , n_fail);
+          `ASSERT_ERROR(~n_fail && ~p_fail, s);
         end
         $fclose(data_file_ref);
       end
     join
-    */
     `TEST_CASE_DONE(1);
 
 
