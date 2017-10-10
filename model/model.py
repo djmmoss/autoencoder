@@ -60,10 +60,10 @@ def make_sine(noise_type, num, window):
 def make_carrier(noise_type):
 
         fs = 5e3
-        N = 1e6
+        N = 1e4
         amp = 2 * np.sqrt(2)
         time = np.arange(N) / float(fs)
-        mod = 500*np.cos(2*np.pi*0.25*time)
+        mod = 25*np.cos(2*np.pi*5*time)
         #carrier = amp * np.sin(2*np.pi*3e3*time + mod)
         carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
         x = carrier
@@ -74,25 +74,44 @@ def make_carrier(noise_type):
         #x_n += noise
 
         # High Period of Noise for some time
-        noise_power = 0.01 * fs / 2
-        noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        n_start = int(len(time)*0.2)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        x_n = carrier + noise
+        #noise_power = 0.01 * fs / 2
+        #noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+        #n_start = int(len(time)*0.2)
+        #n_end = int(len(time)*0.4)
+        #noise[:n_start] *= 0
+        #noise[n_end:] *= 0
+        #x_n = carrier + noise
 
         # Rogue Signal for sometime
-        #noise = amp * np.sin(2*np.pi*5e2*time)
+        #noise = amp * np.sin(2*np.pi*5e2*time + mod)
         #n_start = int(len(time)*0.6)
         #n_end = int(len(time)*0.7)
         #noise[:n_start] *= 0
         #noise[n_end:] *= 0
         #x_n = carrier + noise
+        
+        # Tampering with the main carrier
+        #n_mod = 25*np.cos(2*np.pi*5*time)
+        #noise = -amp * np.sin(2*np.pi*2e3*time + mod) # Cancel
+        #noise = amp * np.sin(2*np.pi*2e3*time + mod) # Boost
+        #n_start = int(len(time)*0.4)
+        #n_end = int(len(time)*0.55)
+        #noise[:n_start] *= 0
+        #noise[n_end:] *= 0
+        #x_n = carrier + noise
+        
+        # Repeat Carrier at a very close frequency 
+        #n_mod = 25*np.cos(2*np.pi*5*time)
+        noise = 2*amp * np.sin(2*np.pi*1.9e3*time)
+        n_start = int(len(time)*0.3)
+        n_end = int(len(time)*0.4)
+        noise[:n_start] *= 0
+        noise[n_end:] *= 0
+        x_n = carrier + noise
 
 
-        f, t, Sxx = signal.spectrogram(x, fs, nperseg=63, nfft=63)
-        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, nperseg=63, nfft=63)
+        f, t, Sxx = signal.spectrogram(x, fs, window='blackmanharris', nperseg=63, noverlap=62)
+        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
 
         #s_n = apply_noise(noise_type, s)
 
@@ -341,11 +360,16 @@ with tf.Session() as sess:
         # x_train = data[0:train_size,:]
         # y_train = x_train
 
+        loss_rate = []
+        step_rate = []
+
         # Standard Denoising using the uncorrupted signals in the loss functions
         for i in range(20000):
-                if i % 200 == 0:
+                if i % 20 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
+                        step_rate.append(i)
+                        loss_rate.append(p_train_val[0])
                 train_step.run(feed_dict={x: x_train, y: y_train})
 
 
@@ -386,6 +410,17 @@ with tf.Session() as sess:
         ax3 = fig.add_subplot(313)
         ax3.plot(t, l2norm)
         ax3.margins(x=0,y=0)
-
+        
         fig.savefig("noise_1.png")
         show()
+        
+        step_rate = np.array(step_rate)
+        loss_rate = np.array(loss_rate)
+        
+        plt.plot(step_rate, loss_rate)
+        plt.ylim((0, 0.00002))
+        plt.xlabel("Time")
+        plt.ylabel("Loss")
+        plt.margins(x=0,y=0)
+        plt.savefig("learn_rate.png")
+        plt.show()
