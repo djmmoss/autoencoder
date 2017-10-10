@@ -71,7 +71,7 @@ def make_carrier(noise_type):
         # Blanket the Entire Signal With Noise
         #noise_power = 0.001 * fs / 2
         #noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        #x_n = carrier + noise
+        #x_n += noise
 
         # High Period of Noise for some time
         noise_power = 0.01 * fs / 2
@@ -83,12 +83,12 @@ def make_carrier(noise_type):
         x_n = carrier + noise
 
         # Rogue Signal for sometime
-        noise = amp * np.sin(2*np.pi*5e2*time)
-        n_start = int(len(time)*0.6)
-        n_end = int(len(time)*0.7)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        x_n += noise
+        #noise = amp * np.sin(2*np.pi*5e2*time)
+        #n_start = int(len(time)*0.6)
+        #n_end = int(len(time)*0.7)
+        #noise[:n_start] *= 0
+        #noise[n_end:] *= 0
+        #x_n = carrier + noise
 
 
         f, t, Sxx = signal.spectrogram(x, fs, nperseg=63, nfft=63)
@@ -342,7 +342,7 @@ with tf.Session() as sess:
         # y_train = x_train
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(10000):
+        for i in range(20000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -387,4 +387,5 @@ with tf.Session() as sess:
         ax3.plot(t, l2norm)
         ax3.margins(x=0,y=0)
 
+        fig.savefig("noise_1.png")
         show()
