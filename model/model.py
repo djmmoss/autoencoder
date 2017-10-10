@@ -55,6 +55,35 @@ def make_sine(noise_type, num, window):
 
         return (x_train, y_train, x_test, y_test)
 
+def make_carrier():
+
+        fs = 10e3
+        N = 1e6
+        amp = 2 * np.sqrt(2)
+        noise_power = 0.01 * fs / 2
+        time = np.arange(N) / float(fs)
+        mod = 500*np.cos(2*np.pi*0.5*time)
+        #carrier = amp * np.sin(2*np.pi*3e3*time + mod)
+        carrier = amp * np.sin(2*np.pi*3e3*time + mod) + amp*np.sin(2*np.pi*2e3*time)
+        x = carrier
+
+        f, t, Sxx = signal.spectrogram(x, fs, nperseg=63, nfft=63)
+
+        data = Sxx.T
+        n_data = data
+        train_size = int(len(data)*0.8)
+        #s_n = apply_noise(noise_type, s)
+
+        #n_data = make_data(s_n, window)
+        #data = make_data(s, window)
+
+        x_train = n_data[0:train_size,:]
+        y_train = data[0:train_size,:]
+        x_test = n_data[train_size:,:]
+        y_test = data[train_size:,:]
+
+        return (x_train, y_train, x_test, y_test)
+
 def apply_noise(noise_type, s):
         num = len(s)
         # Create the Noise
@@ -167,6 +196,7 @@ def  make_data(data, window_size):
 # Dataset Type
 #  0 : Sine
 #  1 : MNIST
+#  2 : Carrier
 dataset_type = 0
 
 # Noise Types:
@@ -202,6 +232,17 @@ elif dataset_type == 1:
         Layer_2 = 600
         Layer_3 = 300
         (x_train, y_train, x_test, y_test) = make_mnist(noise_type)
+elif dataset_type == 2:
+        # * Layer1: 64
+        # * Layer2: 32
+        # * Layer3: 16
+        # * Layer4: 16
+        # * Layer5: 32
+        # * Layer6: 64
+        Layer_1 = 32
+        Layer_2 = 16
+        Layer_3 = 8
+        (x_train, y_train, x_test, y_test) = make_carrier()
 
 
 n_weights = {
