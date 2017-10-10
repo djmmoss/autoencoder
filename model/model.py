@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import sys
+from scipy import signal
+import scipy
 from matplotlib.pyplot import figure, show
 import matplotlib.pyplot as plt
 
@@ -55,34 +57,68 @@ def make_sine(noise_type, num, window):
 
         return (x_train, y_train, x_test, y_test)
 
-def make_carrier():
+def make_carrier(noise_type):
 
-        fs = 10e3
+        fs = 5e3
         N = 1e6
         amp = 2 * np.sqrt(2)
-        noise_power = 0.01 * fs / 2
         time = np.arange(N) / float(fs)
-        mod = 500*np.cos(2*np.pi*0.5*time)
+        mod = 500*np.cos(2*np.pi*0.25*time)
         #carrier = amp * np.sin(2*np.pi*3e3*time + mod)
-        carrier = amp * np.sin(2*np.pi*3e3*time + mod) + amp*np.sin(2*np.pi*2e3*time)
+        carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
         x = carrier
 
-        f, t, Sxx = signal.spectrogram(x, fs, nperseg=63, nfft=63)
+        # Blanket the Entire Signal With Noise
+        #noise_power = 0.001 * fs / 2
+        #noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+        #x_n = carrier + noise
 
-        data = Sxx.T
-        n_data = data
-        train_size = int(len(data)*0.8)
+        # High Period of Noise for some time
+        noise_power = 0.01 * fs / 2
+        noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+        n_start = int(len(time)*0.2)
+        n_end = int(len(time)*0.4)
+        noise[:n_start] *= 0
+        noise[n_end:] *= 0
+        x_n = carrier + noise
+
+        # Rogue Signal for sometime
+        noise = amp * np.sin(2*np.pi*5e2*time)
+        n_start = int(len(time)*0.6)
+        n_end = int(len(time)*0.7)
+        noise[:n_start] *= 0
+        noise[n_end:] *= 0
+        x_n += noise
+
+
+        f, t, Sxx = signal.spectrogram(x, fs, nperseg=63, nfft=63)
+        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, nperseg=63, nfft=63)
+
         #s_n = apply_noise(noise_type, s)
 
         #n_data = make_data(s_n, window)
         #data = make_data(s, window)
+
+        #fig = figure(1)
+
+        #ax1 = fig.add_subplot(211)
+        #ax1.pcolormesh(t, f, Sxx)
+
+        #ax2 = fig.add_subplot(212)
+        #ax2.pcolormesh(t_n, f_n, Sxx_n)
+
+        #show()
+
+        data = Sxx.T
+        n_data = data
+        train_size = int(len(data)*0.8)
 
         x_train = n_data[0:train_size,:]
         y_train = data[0:train_size,:]
         x_test = n_data[train_size:,:]
         y_test = data[train_size:,:]
 
-        return (x_train, y_train, x_test, y_test)
+        return (x_train, y_train, x_test, y_test, f, t, data, Sxx_n.T)
 
 def apply_noise(noise_type, s):
         num = len(s)
@@ -170,7 +206,7 @@ def print_network(L1, L2, L3):
     f.write("#define LAYER_3 " + str(L3) + "\n")
     f.flush()
     f.close()
-    
+
     f = open(data_path + "noc_block_autoenc_tb.vh", "w")
     f.write("`define TEST_SPP " + str(L1) + "\n")
     f.write("`define TEST_TRL 2\n")
@@ -197,7 +233,7 @@ def  make_data(data, window_size):
 #  0 : Sine
 #  1 : MNIST
 #  2 : Carrier
-dataset_type = 0
+dataset_type = 2
 
 # Noise Types:
 #  0 : None
@@ -242,7 +278,7 @@ elif dataset_type == 2:
         Layer_1 = 32
         Layer_2 = 16
         Layer_3 = 8
-        (x_train, y_train, x_test, y_test) = make_carrier()
+        (x_train, y_train, x_test, y_test, f, t, dat, n_dat) = make_carrier(noise_type)
 
 
 n_weights = {
@@ -306,52 +342,49 @@ with tf.Session() as sess:
         # y_train = x_train
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(20000):
+        for i in range(10000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
                 train_step.run(feed_dict={x: x_train, y: y_train})
 
 
-        p_pred_n = sess.run([pred], feed_dict={x: x_test, y: y_test})[0]
+        p_pred_n = sess.run([pred], feed_dict={x: x_test})[0]
         print("MSE(Denoise): ", np.mean(np.square(p_pred_n - y_test)))
         print("MSE(Vs Corrupted): ", np.mean(np.square(p_pred_n - x_test)))
 
-        data_path = "data/"
+        #data_path = "data/"
 
         l2norm = np.sum(np.square(p_pred_n - x_test), 1)
 
         # Print the Dataset to a file
-        np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
+        #np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
 
         # Print out the expected predictions
-        np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
+        #np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
 
         # Save the Weight to a file
-        print_weights(data_path, n_weights)
+        #print_weights(data_path, n_weights)
 
         # Save the Biases to a file
-        print_biases(data_path, n_biases)
+        #print_biases(data_path, n_biases)
 
-        print_network(Layer_1, Layer_2, Layer_3)
+        #print_network(Layer_1, Layer_2, Layer_3)
 
         # Display some Results
-        #out_n = p_pred_n[0].reshape([28,28])
-        #exp = y_test[0].reshape([28,28])
-        #exp_n = x_test[0].reshape([28,28])
+        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
+        l2norm = np.sum(np.square(p_pred - n_dat), 1)
 
-        #fig = figure(1)
+        fig = figure(1)
 
-        #ax1 = fig.add_subplot(311)
-        #ax1.imshow(exp, cmap=plt.get_cmap('gray_r'))
-        #ax1.grid(True)
+        ax1 = fig.add_subplot(311)
+        ax1.pcolormesh(t, f, p_pred.T)
 
-        #ax2 = fig.add_subplot(312)
-        #ax2.imshow(out_n, cmap=plt.get_cmap('gray_r'))
-        #ax2.grid(True)
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t, f, n_dat.T)
 
-        #ax3 = fig.add_subplot(313)
-        #ax3.imshow(exp_n, cmap=plt.get_cmap('gray_r'))
-        #ax3.grid(True)
+        ax3 = fig.add_subplot(313)
+        ax3.plot(t, l2norm)
+        ax3.margins(x=0,y=0)
 
-        #show()
+        show()
