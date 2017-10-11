@@ -57,14 +57,13 @@ def make_sine(noise_type, num, window):
 
         return (x_train, y_train, x_test, y_test)
 
-def make_carrier(noise_type):
+def make_carrier():
 
         fs = 5e3
         N = 1e4
         amp = 2 * np.sqrt(2)
         time = np.arange(N) / float(fs)
         mod = 25*np.cos(2*np.pi*5*time)
-        #carrier = amp * np.sin(2*np.pi*3e3*time + mod)
         carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
         x = carrier
 
@@ -102,16 +101,15 @@ def make_carrier(noise_type):
         
         # Repeat Carrier at a very close frequency 
         #n_mod = 25*np.cos(2*np.pi*5*time)
-        noise = 2*amp * np.sin(2*np.pi*1.9e3*time)
-        n_start = int(len(time)*0.3)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        x_n = carrier + noise
+        #noise = 2*amp * np.sin(2*np.pi*1.9e3*time)
+        #n_start = int(len(time)*0.3)
+        #n_end = int(len(time)*0.4)
+        #noise[:n_start] *= 0
+        #noise[n_end:] *= 0
+        #x_n = carrier + noise
 
 
         f, t, Sxx = signal.spectrogram(x, fs, window='blackmanharris', nperseg=63, noverlap=62)
-        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
 
         #s_n = apply_noise(noise_type, s)
 
@@ -137,7 +135,7 @@ def make_carrier(noise_type):
         x_test = n_data[train_size:,:]
         y_test = data[train_size:,:]
 
-        return (x_train, y_train, x_test, y_test, f, t, data, Sxx_n.T)
+        return (x_train, y_train, x_test, y_test, f, t, data)
 
 def apply_noise(noise_type, s):
         num = len(s)
@@ -297,7 +295,7 @@ elif dataset_type == 2:
         Layer_1 = 32
         Layer_2 = 16
         Layer_3 = 8
-        (x_train, y_train, x_test, y_test, f, t, dat, n_dat) = make_carrier(noise_type)
+        (x_train, y_train, x_test, y_test, f, t, dat) = make_carrier()
 
 
 n_weights = {
@@ -380,6 +378,7 @@ with tf.Session() as sess:
         #data_path = "data/"
 
         l2norm = np.sum(np.square(p_pred_n - x_test), 1)
+        baseline = np.mean(l2norm)
 
         # Print the Dataset to a file
         #np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
@@ -394,10 +393,172 @@ with tf.Session() as sess:
         #print_biases(data_path, n_biases)
 
         #print_network(Layer_1, Layer_2, Layer_3)
+        
+        fs = 5e3
+        N = 1e4
+        amp = 2 * np.sqrt(2)
+        time = np.arange(N) / float(fs)
+        mod = 25*np.cos(2*np.pi*5*time)
+        carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
+            
+            # Blanket the Entire Signal With Noise
+            #noise_power = 0.001 * fs / 2
+            #noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+            #x_n = carrier + noise
 
-        # Display some Results
-        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-        l2norm = np.sum(np.square(p_pred - n_dat), 1)
+        noise_level = np.linspace(0.00001, 0.002, 100)
+        noise_level = np.concatenate((noise_level, np.linspace(0.002, 0.2, 100)))
+        gb_f_snr = []
+        gb_f_l2n = []
+
+        for n_l in noise_level:
+            # High Period of Noise for some time
+            noise_power = n_l * fs / 2
+            noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+            n_start = int(len(time)*0.2)
+            n_end = int(len(time)*0.4)
+            noise[:n_start] *= 0
+            noise[n_end:] *= 0
+            x_n = carrier + noise
+            
+            # Calculate SNR
+            p_noise = 1/len(noise[n_start:n_end])*np.sum(np.square(np.abs(noise[n_start:n_end])))
+            p_sn = 1/len(x_n[n_start:n_end])*np.sum(np.square(np.abs(x_n[n_start:n_end])))
+            snr = 10*np.log10((p_sn - p_noise)/p_noise)
+            
+            f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
+            n_dat = Sxx_n.T
+
+            # Display some Results
+            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
+            l2norm = np.sum(np.square(p_pred - n_dat), 1)
+            gb_f_snr.append(snr)
+            gb_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
+            
+            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+
+
+        noise_level = np.linspace(0.1, 1, 100)
+        noise_level = np.concatenate((noise_level, np.linspace(1, 21, 100)))
+        rs_f_snr = []
+        rs_f_l2n = []
+
+        for n_l in noise_level:
+            # Rogue Signal for sometime
+            noise = n_l*amp * np.sin(2*np.pi*5e2*time + mod)
+            n_start = int(len(time)*0.6)
+            n_end = int(len(time)*0.7)
+            noise[:n_start] *= 0
+            noise[n_end:] *= 0
+            x_n = carrier + noise
+            
+            # Calculate SNR
+            p_noise = 1/len(noise[n_start:n_end])*np.sum(np.square(np.abs(noise[n_start:n_end])))
+            p_sn = 1/len(x_n[n_start:n_end])*np.sum(np.square(np.abs(x_n[n_start:n_end])))
+            snr = 10*np.log10((p_sn - p_noise)/p_noise)
+            
+            f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
+            n_dat = Sxx_n.T
+
+            # Display some Results
+            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
+            l2norm = np.sum(np.square(p_pred - n_dat), 1)
+            rs_f_snr.append(snr)
+            rs_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
+            
+            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+            
+        noise_level = np.linspace(0.1, 0.999999, 200)
+
+        tc_f_snr = []
+        tc_f_l2n = []
+
+        for n_l in noise_level:
+            # Tampering with the main carrier
+            n_mod = 25*np.cos(2*np.pi*5*time)
+            noise = -n_l*amp * np.sin(2*np.pi*2e3*time + mod) # Cancel
+            #noise = amp * np.sin(2*np.pi*2e3*time + mod) # Boost
+            n_start = int(len(time)*0.4)
+            n_end = int(len(time)*0.55)
+            noise[:n_start] *= 0
+            noise[n_end:] *= 0
+            x_n = carrier + noise
+            
+            # Calculate SNR
+            p_noise = 1/len(noise[n_start:n_end])*np.sum(np.square(np.abs(noise[n_start:n_end])))
+            p_sn = 1/len(x_n[n_start:n_end])*np.sum(np.square(np.abs(x_n[n_start:n_end])))
+            snr = 10*np.log10((p_sn - p_noise)/p_noise)
+            
+            f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
+            n_dat = Sxx_n.T
+
+            # Display some Results
+            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
+            l2norm = np.sum(np.square(p_pred - n_dat), 1)
+            tc_f_snr.append(snr)
+            tc_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
+            
+            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+       
+        noise_level = np.linspace(0.1, 1, 100)
+        noise_level = np.concatenate((noise_level, np.linspace(1, 21, 100)))
+
+        rc_f_snr = []
+        rc_f_l2n = []
+
+        for n_l in noise_level:
+            # Repeat Carrier at a very close frequency 
+            #n_mod = 25*np.cos(2*np.pi*5*time)
+            noise = n_l*amp * np.sin(2*np.pi*1.9e3*time)
+            n_start = int(len(time)*0.3)
+            n_end = int(len(time)*0.4)
+            noise[:n_start] *= 0
+            noise[n_end:] *= 0
+            x_n = carrier + noise
+
+            # Calculate SNR
+            p_noise = 1/len(noise[n_start:n_end])*np.sum(np.square(np.abs(noise[n_start:n_end])))
+            p_sn = 1/len(x_n[n_start:n_end])*np.sum(np.square(np.abs(x_n[n_start:n_end])))
+            snr = 10*np.log10((p_sn - p_noise)/p_noise)
+
+            
+            f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
+            n_dat = Sxx_n.T
+
+            # Display some Results
+            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
+            l2norm = np.sum(np.square(p_pred - n_dat), 1)
+            rc_f_snr.append(snr)
+            rc_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
+
+            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+
+        gb_f_snr = np.array(gb_f_snr)
+        gb_f_l2n = np.array(gb_f_l2n)
+        
+        rs_f_snr = np.array(rs_f_snr)
+        rs_f_l2n = np.array(rs_f_l2n)
+        
+        tc_f_snr = np.array(tc_f_snr)
+        tc_f_l2n = np.array(tc_f_l2n)
+        
+        rc_f_snr = np.array(rc_f_snr)
+        rc_f_l2n = np.array(rc_f_l2n)
+        #rc_f_l2n = rc_f_l2n / np.max(rc_f_l2n)
+
+        plt.semilogx(gb_f_l2n, gb_f_snr, label="Gaussian Band")
+        plt.semilogx(rs_f_l2n, rs_f_snr, label="Rogue Signal")
+        plt.semilogx(tc_f_l2n, tc_f_snr, label="Carrier Tampering")
+        plt.semilogx(rc_f_l2n, rc_f_snr, label="Repeat Carrier f shifted")
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+                           ncol=2, mode="expand", borderaxespad=0.)
+        plt.ylim((-20, 20))
+        plt.margins(x=0,y=0)
+        plt.xlabel("Number of Times larger than the Basline")
+        plt.ylabel("SNR(dB)")
+        plt.savefig("snr_noise.png")
+        plt.show()
+        
 
         fig = figure(1)
 
@@ -411,7 +572,7 @@ with tf.Session() as sess:
         ax3.plot(t, l2norm)
         ax3.margins(x=0,y=0)
         
-        fig.savefig("noise_1.png")
+        #fig.savefig("noise_1.png")
         show()
         
         step_rate = np.array(step_rate)
