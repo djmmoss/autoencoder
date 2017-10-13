@@ -12,43 +12,81 @@ def noise_band(n_l, amp, fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
         noise_power = n_l * amp * fs / 2
         noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        n_start = int(len(time)*0.2)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
+        i = amp*np.cos(noise)
+        q = amp*np.sin(noise)
+        s1 = np.random.uniform(0,1,1)
+        s2 = np.random.uniform(0,1,1)
+        while np.abs(s2 - s1) > 0.05:
+            s2 = np.random.rand() 
 
-def noise_rogue(n_l, amp, fs=5e3, N=1e4):
-        # Rogue Signal for sometime
-        time = np.arange(N) / float(fs)
-        n_mod = 25*np.cos(2*np.pi*5*time)
-        noise = n_l * amp * np.sin(2*np.pi*5e2*time + n_mod)
-        n_start = int(len(time)*0.6)
-        n_end = int(len(time)*0.7)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
+        if s1 < s2:
+            n_start = int(len(time)*s1)
+            n_end = int(len(time)*s2)
+        else:
+            n_start = int(len(time)*s2)
+            n_end = int(len(time)*s1)
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q)
 
-def noise_tamper(n_l, amp, fs=5e3, N=1e4):
-        # Tampering with the main carrier
+def noise_complex_sine(n_l, amp, fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        n_mod = 25*np.cos(2*np.pi*5*time)
-        noise = -n_l * amp * np.sin(2*np.pi*2e3*time + n_mod) # Cancel
-        n_start = int(len(time)*0.4)
-        n_end = int(len(time)*0.55)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
+        fs = np.random.uniform(fs/2, fs*2, 1) 
+        mod = n_l*amp*np.exp(2j*np.pi*fs*time)
+        i = np.real(mod)
+        q = np.imag(mod)
+        s1 = np.random.uniform(0,1,1)
+        s2 = np.random.uniform(0,1,1)
+        while np.abs(s2 - s1) > 0.05:
+            s2 = np.random.uniform(0,1,1)
 
-def noise_repeat(n_l, amp, fs=5e3, N=1e4):
-        # Repeat Carrier at a very close frequency 
+        if s1 < s2:
+            n_start = int(len(time)*s1)
+            n_end = int(len(time)*s2)
+        else:
+            n_start = int(len(time)*s2)
+            n_end = int(len(time)*s1)
+
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q)
+
+def noise_chirp(n_l, amp, fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        noise = n_l*amp * np.sin(2*np.pi*1.9e3*time)
-        n_start = int(len(time)*0.3)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
+        s1 = np.random.uniform(0,1,1)
+        s2 = np.random.rand() 
+        while np.abs(s2 - s1) > 0.05:
+            s2 = np.random.rand() 
+
+        if s1 < s2:
+            n_start = int(len(time)*s1)
+            n_end = int(len(time)*s2)
+        else:
+            n_start = int(len(time)*s2)
+            n_end = int(len(time)*s1)
+
+        length = int(len(time[n_start:n_end]))
+        fs1 = np.random.uniform(fs/2, fs*2, 1) 
+        fs2 = np.random.uniform(fs/2, fs*2, 1) 
+        freq = np.linspace(fs1, fs2, length)
+        freq_start = np.ones(len(time[:n_start]))*fs1
+        freq_end = np.ones(len(time[n_end:]))*fs2
+        freq = np.concatenate((freq_start, freq))
+        freq = np.concatenate((freq, freq_end))
+        mod = n_l*amp*np.exp(2j*np.pi*freq*time)
+        i = np.real(mod)
+        q = np.imag(mod)
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q)
+
+
 
 def plot_spectrum(t, f, p_pred, n_dat, l2norm, filename):
         fig = figure(1)
@@ -75,11 +113,13 @@ def calc_snr(noise, signal):
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
         noise = np.random.normal(scale=0.001, size=time.shape) 
-        mod = 25*np.cos(2*np.pi*5*time) + noise
+        mod_2 = 0.5*np.cos(2*np.pi*25*time)
+        mod = 25*np.cos(2*np.pi*5*time + mod_2)
+        #mod = 500*np.cos(2*np.pi*0.25*time)# + noise
         i = amp*np.cos(mod)
         q = amp*np.sin(mod)
-        #c_test = amp * np.cos(2*np.pi*2e3*time + mod)
-        # c = i*np.cos(2*np.pi*2e3*time) - q*np.sin(2*np.pi*2e3*time) 
+        #c_test = amp * np.sin(2*np.pi*2e3*time + mod)
+        #c = i*np.sin(2*np.pi*2e3*time) + q*np.cos(2*np.pi*2e3*time) 
         return (i, q)
 
 def make_carrier(amp, fs, N, window):
@@ -161,8 +201,8 @@ Layer_1 = 32
 Layer_2 = 16
 Layer_3 = 8
 
-fs = 5#e3
-N = 1e2
+fs = 5e3
+N = 1e5
 amp = 2 * np.sqrt(2)
 
 i_s, q_s = carrier(amp, fs, N)
@@ -247,7 +287,7 @@ with tf.Session() as sess:
         step_rate = []
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(10000):
+        for i in range(30000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -273,37 +313,261 @@ with tf.Session() as sess:
         diff = int(Layer_1/2)
         i_s = i_s[:-diff]
         q_s = q_s[:-diff]
-        t = np.linspace(0, 1, len(i_s)) 
-        c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t) 
-        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris', nperseg=63, noverlap=62)
-        
-        i_p = []
-        q_p = []
-        for win in p_pred:
-            ifft_w = win[:diff] + win[diff:]*1j
-            ifft_res = np.fft.ifft(ifft_w)
-            i_p.append(np.real(ifft_res[0]))
-            q_p.append(np.imag(ifft_res[0]))
-
-        i_p = np.array(i_p)
-        q_p = np.array(q_p)
-        p = i_p*np.cos(2*np.pi*2e3*t) - q_p*np.sin(2*np.pi*2e3*t) 
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        c = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris')
+       
+        f = np.linspace(0, fs, 32)
 
         fig = figure(1)
 
-        ax1 = fig.add_subplot(311)
-        ax1.plot(t, c)
-        ax1.margins(x=0,y=0)
+        ax1 = fig.add_subplot(211)
+        ax1.pcolormesh(t, f, data.T)
+        #ax1.plot(t, c)
+        #ax1.margins(x=0,y=0)
         
-        ax2 = fig.add_subplot(312)
+        ax2 = fig.add_subplot(212)
+        #ax2.pcolormesh(t, f, data.T)
         ax2.pcolormesh(t_sp, f_sp, Sxx)
 
-        ax2 = fig.add_subplot(313)
-        ax2.plot(t, p)
-        ax2.margins(x=0,y=0)
+        #ax2 = fig.add_subplot(313)
+        #ax2.plot(t, p)
+        #ax2.margins(x=0,y=0)
         
+        #show()
+        
+        i_s, q_s = carrier(amp, fs, N)
+        i_n, q_n = noise_complex_sine(1, amp, fs, N)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+        
+        i_n, q_n = noise_chirp(1, amp, fs, N)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+        
+        i_n, q_n = noise_band(1, amp, fs, N)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+
+
+        sig = i_s + q_s*1j
+
+        sig_window = make_data(sig, Layer_1/2)
+
+        data = []
+        for sig_w in sig_window:
+            fft_res = np.fft.fft(sig_w)
+            fft_r = np.real(fft_res)
+            fft_i = np.imag(fft_res)
+            data.append(np.concatenate((fft_r, fft_i)))
+
+        data = np.array(data)
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        l2norm = np.sum(np.square(p_pred - data), 1)
+        
+        diff = int(Layer_1/2)
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        c = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris')
+        
+        fig = figure(1)
+
+        ax1 = fig.add_subplot(311)
+        ax1.pcolormesh(t_sp, f_sp, Sxx)
+        #ax1.plot(t, c)
+        #ax1.margins(x=0,y=0)
+        
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t, f, data.T)
+
+        #ax3 = fig.add_subplot(413)
+        #ax3.plot(t, p)
+        #ax3.margins(x=0,y=0)
+        
+        ax4 = fig.add_subplot(313)
+        ax4.plot(t, l2norm)
+        ax4.margins(x=0,y=0)
+        
+        fig.savefig("noise_overview.png")
         show()
 
+        i_s, q_s = carrier(amp, fs, N)
+        i_n, q_n = noise_complex_sine(1, amp, fs, N)
+
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+
+        sig = i_s + q_s*1j
+
+        sig_window = make_data(sig, Layer_1/2)
+
+        data = []
+        for sig_w in sig_window:
+            fft_res = np.fft.fft(sig_w)
+            fft_r = np.real(fft_res)
+            fft_i = np.imag(fft_res)
+            data.append(np.concatenate((fft_r, fft_i)))
+
+        data = np.array(data)
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        l2norm = np.sum(np.square(p_pred - data), 1)
+        
+        diff = int(Layer_1/2)
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        c = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris')
+        
+        fig = figure(1)
+
+        ax1 = fig.add_subplot(311)
+        ax1.pcolormesh(t_sp, f_sp, Sxx)
+        #ax1.plot(t, c)
+        #ax1.margins(x=0,y=0)
+        
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t, f, data.T)
+
+        #ax3 = fig.add_subplot(413)
+        #ax3.plot(t, p)
+        #ax3.margins(x=0,y=0)
+        
+        ax4 = fig.add_subplot(313)
+        ax4.plot(t, l2norm)
+        ax4.margins(x=0,y=0)
+        
+        fig.savefig("noise_complex.png")
+        show()
+        
+        i_s, q_s = carrier(amp, fs, N)
+        i_n, q_n = noise_chirp(1, amp, fs, N)
+
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+
+        sig = i_s + q_s*1j
+
+        sig_window = make_data(sig, Layer_1/2)
+
+        data = []
+        for sig_w in sig_window:
+            fft_res = np.fft.fft(sig_w)
+            fft_r = np.real(fft_res)
+            fft_i = np.imag(fft_res)
+            data.append(np.concatenate((fft_r, fft_i)))
+
+        data = np.array(data)
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        l2norm = np.sum(np.square(p_pred - data), 1)
+        
+        diff = int(Layer_1/2)
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        c = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris')
+        
+        #i_p = []
+        #q_p = []
+        #for win in p_pred:
+        #    ifft_w = win[:diff] + win[diff:]*1j
+        #    ifft_res = np.fft.ifft(ifft_w)
+        #    i_p.append(np.real(ifft_res[0]))
+        #    q_p.append(np.imag(ifft_res[0]))
+
+        #i_p = np.array(i_p)
+        #q_p = np.array(q_p)
+        #p = i_p*np.sin(2*np.pi*2e3*t) + q_p*np.cos(2*np.pi*2e3*t) 
+        
+        fig = figure(1)
+
+        ax1 = fig.add_subplot(311)
+        ax1.pcolormesh(t_sp, f_sp, Sxx)
+        #ax1.plot(t, c)
+        #ax1.margins(x=0,y=0)
+        
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t, f, data.T)
+
+        #ax3 = fig.add_subplot(413)
+        #ax3.plot(t, p)
+        #ax3.margins(x=0,y=0)
+        
+        ax4 = fig.add_subplot(313)
+        ax4.plot(t, l2norm)
+        ax4.margins(x=0,y=0)
+        
+        fig.savefig("noise_chirp.png")
+        show()
+        
+        i_s, q_s = carrier(amp, fs, N)
+        i_n, q_n = noise_band(1, amp, fs, N)
+
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+
+        sig = i_s + q_s*1j
+
+        sig_window = make_data(sig, Layer_1/2)
+
+        data = []
+        for sig_w in sig_window:
+            fft_res = np.fft.fft(sig_w)
+            fft_r = np.real(fft_res)
+            fft_i = np.imag(fft_res)
+            data.append(np.concatenate((fft_r, fft_i)))
+
+        data = np.array(data)
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        l2norm = np.sum(np.square(p_pred - data), 1)
+        
+        diff = int(Layer_1/2)
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        c = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris')
+        
+        #i_p = []
+        #q_p = []
+        #for win in p_pred:
+        #    ifft_w = win[:diff] + win[diff:]*1j
+        #    ifft_res = np.fft.ifft(ifft_w)
+        #    i_p.append(np.real(ifft_res[0]))
+        #    q_p.append(np.imag(ifft_res[0]))
+
+        #i_p = np.array(i_p)
+        #q_p = np.array(q_p)
+        #p = i_p*np.sin(2*np.pi*2e3*t) + q_p*np.cos(2*np.pi*2e3*t) 
+        
+        fig = figure(1)
+
+        ax1 = fig.add_subplot(311)
+        ax1.pcolormesh(t_sp, f_sp, Sxx)
+        #ax1.plot(t, c)
+        #ax1.margins(x=0,y=0)
+        
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t, f, data.T)
+
+        #ax3 = fig.add_subplot(413)
+        #ax3.plot(t, p)
+        #ax3.margins(x=0,y=0)
+        
+        ax4 = fig.add_subplot(313)
+        ax4.plot(t, l2norm)
+        ax4.margins(x=0,y=0)
+        
+        fig.savefig("noise_band.png")
+        show()
  
 
         """
@@ -429,19 +693,6 @@ with tf.Session() as sess:
         plt.ylabel("SNR(dB)")
         plt.savefig("snr_noise.png")
         plt.show()
-        """
-        # High Period of Noise for some time
-        t, c = carrier(amp, fs, N)
-        x_n = c
-
-        n_dat = make_data(x_n, Layer_1)
-
-        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-        l2norm = np.sum(np.square(p_pred - n_dat), 1)
-        
-        
-
-        """    
         # High Period of Noise for some time
         noise, _, _ = noise_band(1, 0.01, fs, N)
         x_n = c + noise
