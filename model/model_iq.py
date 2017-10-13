@@ -8,55 +8,6 @@ import matplotlib.pyplot as plt
 
 from tensorflow.examples.tutorials.mnist import input_data
 
-
-def make_mnist(noise_type):
-        mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-
-        y_train = mnist.train.images
-        x_train = []
-        # Apply Noise to each Image
-        for img in y_train:
-                x_train.append(apply_noise(noise_type, img))
-        y_train = np.array(y_train)
-
-        y_test = mnist.test.images
-        x_test = []
-        # Apply Noise to each Image
-        for img in y_test:
-                x_test.append(apply_noise(noise_type, img))
-        y_test = np.array(y_test)
-
-        return (x_train, y_train, x_test, y_test)
-
-def make_sine(noise_type, num, window):
-
-        train_size = int((num-window)*0.8)
-        n = np.linspace(0, 20.0, num)
-
-        # Make the sine wave...
-        a = 1
-        w = 2*np.pi
-        wt = w*n
-        p_phase = w*(n -  np.floor(n))
-
-        i = a*np.cos(0)
-        q = a*np.sin(0)
-        s = i*np.cos(wt) - q*np.sin(wt)
-
-        #s = a*np.cos(2*np.pi*n)
-
-        s_n = apply_noise(noise_type, s)
-
-        n_data = make_data(s_n, window)
-        data = make_data(s, window)
-
-        x_train = n_data[0:train_size,:]
-        y_train = data[0:train_size,:]
-        x_test = n_data[train_size:,:]
-        y_test = data[train_size:,:]
-
-        return (x_train, y_train, x_test, y_test)
-
 def noise_band(n_l, amp, fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
         noise_power = n_l * amp * fs / 2
@@ -123,79 +74,17 @@ def calc_snr(noise, signal):
 
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        noise_power = 0.0005
-        noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        mod_2 = 0.5*np.cos(2*np.pi*25*time)
-        mod = 25*np.cos(2*np.pi*5*time + mod_2)
-        carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
+        noise = np.random.normal(scale=0.001, size=time.shape) 
+        mod = 25*np.cos(2*np.pi*5*time) + noise
         i = amp*np.cos(mod)
         q = amp*np.sin(mod)
-        return (time, carrier)
+        #c_test = amp * np.cos(2*np.pi*2e3*time + mod)
+        # c = i*np.cos(2*np.pi*2e3*time) - q*np.sin(2*np.pi*2e3*time) 
+        return (i, q)
 
 def make_carrier(amp, fs, N, window):
         t, s = carrier(amp, fs, N)
 
-        data = make_data(s, window)
-        n_data = data
-        train_size = int(len(data)*0.8)
-
-        x_train = n_data[0:train_size,:]
-        y_train = data[0:train_size,:]
-        x_test = n_data[train_size:,:]
-        y_test = data[train_size:,:]
-
-        return (x_train, y_train, x_test, y_test,data)
-
-def apply_noise(noise_type, s):
-        num = len(s)
-        # Create the Noise
-        # None
-        if noise_type == 0:
-                s_n = s
-
-        # Additive Isotropic Gaussian Noise
-        if noise_type == 1:
-                n_level = 0.2
-                noise = np.random.normal(0, n_level, num)
-                s_n = s + noise
-
-                # Calculate SNR
-                p_noise = 1/len(noise)*np.sum(np.square(np.abs(noise)))
-                p_sn = 1/len(s_n)*np.sum(np.square(np.abs(s_n)))
-                snr = 10*np.log10((p_sn - p_noise)/p_noise)
-
-                print("SNR(dB): %.2f" % (snr))
-
-        # Masking Noise : Some fraction of s are set to zero
-        if noise_type == 2:
-                mask_perc = 0.2
-                idx = np.arange(num)
-                s_idx = np.random.choice(idx, int(num*mask_perc), replace=False)
-                s_n = np.zeros(len(s))
-                np.copyto(s_n, s)
-                s_n[s_idx] = 0
-
-        # Salt and Pepper Nosie : Some fraction of s are set to either min or max based on a coin flip
-        if noise_type == 3:
-                s_max = np.max(s)
-                s_min = np.min(s)
-                mask_perc = 0.2
-                idx = np.arange(num)
-                s_idx = np.random.choice(idx, int(num*mask_perc), replace=False)
-                s_n = np.zeros(len(s))
-                np.copyto(s_n, s)
-                flip = np.random.random_sample(len(s_idx))
-                s_n[s_idx[flip > 0.5]] = s_max
-                s_n[s_idx[flip < 0.5]] = s_min
-
-        return s_n
-
-def display_digit(img, lbl):
-    label = lbl.argmax(axis=0)
-    image = img.reshape([28,28])
-    plt.title('Example: %d  Label: %d' % (num, label))
-    plt.imshow(image, cmap=plt.get_cmap('gray_r'))
-    plt.show()
 
 def print_weights(data_path, n_weights):
         for w in n_weights:
@@ -255,61 +144,33 @@ def  make_data(data, window_size):
 
         return np.array(X)
 
-fs = 5e3
-N = 1e4
+# * Layer1: 32
+# * Layer2: 16
+# * Layer3: 8
+# * Layer4: 16
+# * Layer5: 32
+Layer_1 = 32
+Layer_2 = 16
+Layer_3 = 8
+
+fs = 5#e3
+N = 1e2
 amp = 2 * np.sqrt(2)
 
-# Dataset Type
-#  0 : Sine
-#  1 : MNIST
-#  2 : Carrier
-dataset_type = 2
+i_s, q_s = carrier(amp, fs, N)
 
-# Noise Types:
-#  0 : None
-#  1 : Additive Isotripic Gaussian
-#  2 : Masking
-#  3 : Salt and Pepper
-noise_type = 0
+# Combine the IQ Data for Training
+i_data = make_data(i_s, Layer_1/2)
+q_data = make_data(q_s, Layer_1/2)
+data = np.concatenate((i_data, q_data), axis=1)
 
-if dataset_type == 0:
-        # AutoEncoder will look like this:
-        # * Layer1: 64
-        # * Layer2: 32
-        # * Layer3: 16
-        # * Layer4: 16
-        # * Layer5: 32
-        # * Layer6: 64
-        Layer_1 = 32
-        Layer_2 = 16
-        Layer_3 = 8
-        window = Layer_1
-        num = 2000
-        (x_train, y_train, x_test, y_test) = make_sine(noise_type, num, window)
-elif dataset_type == 1:
-        # AutoEncoder will look like this:
-        # * Layer1: 784
-        # * Layer2: 400
-        # * Layer3: 200
-        # * Layer4: 200
-        # * Layer5: 400
-        # * Layer6: 784
-        Layer_1 = 784
-        Layer_2 = 600
-        Layer_3 = 300
-        (x_train, y_train, x_test, y_test) = make_mnist(noise_type)
-elif dataset_type == 2:
-        # * Layer1: 64
-        # * Layer2: 32
-        # * Layer3: 16
-        # * Layer4: 16
-        # * Layer5: 32
-        # * Layer6: 64
-        Layer_1 = 32
-        Layer_2 = 16
-        Layer_3 = 8
-        window = Layer_1
-        (x_train, y_train, x_test, y_test,data) = make_carrier(amp, fs, N, window)
+n_data = data
+train_size = int(len(data)*0.8)
+
+x_train = n_data[0:train_size,:]
+y_train = data[0:train_size,:]
+x_test = n_data[train_size:,:]
+y_test = data[train_size:,:]
 
 
 n_weights = {
@@ -367,16 +228,11 @@ with tf.Session() as sess:
 
         sess.run(tf.global_variables_initializer())
 
-
-        # Use the entire data set as the batch
-        # x_train = data[0:train_size,:]
-        # y_train = x_train
-
         loss_rate = []
         step_rate = []
 
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(20000):
+        for i in range(10000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -388,24 +244,44 @@ with tf.Session() as sess:
         p_pred_n = sess.run([pred], feed_dict={x: x_test})[0]
         print("MSE(Denoise): ", np.mean(np.square(p_pred_n - y_test)))
         print("MSE(Vs Corrupted): ", np.mean(np.square(p_pred_n - x_test)))
+       
+
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+      
+        diff = int(Layer_1/2)
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        t = np.linspace(0, 1, len(i_s)) 
+        c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t) 
+        f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris', nperseg=63, noverlap=62)
+
+        i_p = p_pred[:,0]
+        q_p = p_pred[:,diff]
+        p = i_p*np.cos(2*np.pi*2e3*t) - q_p*np.sin(2*np.pi*2e3*t) 
+
+        print(i_s)
+        print(i_p)
+
+        fig = figure(1)
+
+        ax1 = fig.add_subplot(311)
+        ax1.plot(t, c)
+        ax1.margins(x=0,y=0)
+        
+        ax2 = fig.add_subplot(312)
+        ax2.pcolormesh(t_sp, f_sp, Sxx)
+
+        ax2 = fig.add_subplot(313)
+        ax2.plot(t, p)
+        ax2.margins(x=0,y=0)
+        
+        show()
 
         #data_path = "data/"
-
-        l2norm = np.sum(np.square(p_pred_n - x_test), 1)
-        baseline = np.mean(l2norm)
-
-        # Print the Dataset to a file
         #np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
-
-        # Print out the expected predictions
         #np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
-
-        # Save the Weight to a file
         #print_weights(data_path, n_weights)
-
-        # Save the Biases to a file
         #print_biases(data_path, n_biases)
-
         #print_network(Layer_1, Layer_2, Layer_3)
  
 
@@ -542,17 +418,6 @@ with tf.Session() as sess:
         p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
         l2norm = np.sum(np.square(p_pred - n_dat), 1)
         
-        fig = figure(1)
-
-        ax1 = fig.add_subplot(211)
-        ax1.plot(t[:-32], c[:-32])
-        ax1.margins(x=0,y=0)
-
-        ax2 = fig.add_subplot(212)
-        ax2.plot(t[:-32], l2norm)
-        ax2.margins(x=0,y=0)
-        
-        show()
         
 
         """    
