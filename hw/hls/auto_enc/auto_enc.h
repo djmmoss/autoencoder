@@ -29,6 +29,8 @@
 #define W_WIDTH 16
 #define I_WIDTH 5
 
+#define W 1.21695220551 // For N = 32
+
 typedef ap_fixed<W_WIDTH,I_WIDTH> interface_t;
 
 typedef ap_fixed<32,10> accum_t;
@@ -41,18 +43,24 @@ typedef ap_fixed<16,5> layer3_t;
 typedef ap_fixed<16,5> layer4_t;
 typedef ap_fixed<16,5> layer5_t;
 
-/*
-typedef half interface_t;
-typedef half accum_t;
-typedef half weight_t;
-typedef half bias_t;
 
-typedef half layer1_t;
-typedef half layer2_t;
-typedef half layer3_t;
-typedef half layer4_t;
-typedef half layer5_t;
+/*
+typedef float interface_t;
+typedef float accum_t;
+typedef float weight_t;
+typedef float bias_t;
+
+typedef float layer1_t;
+typedef float layer2_t;
+typedef float layer3_t;
+typedef float layer4_t;
+typedef float layer5_t;
 */
+
+typedef struct comp {
+    interface_t re;
+    interface_t im;
+} cplx;
 
 short float2short(float f, int i_width);
 float short2float(short s, int i_width);
