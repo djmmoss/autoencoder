@@ -368,16 +368,6 @@ with tf.Session() as sess:
         print(ch_snr)
         print(ch_l2n)
         
-        plt.semilogx(c_l2n, c_snr, label="Complex Sinusoid")
-        plt.semilogx(ch_l2n, ch_snr, label="Chirp Event")
-        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-                           ncol=2, mode="expand", borderaxespad=0.)
-        plt.ylim((-20, 20))
-        plt.margins(x=0,y=0)
-        plt.xlabel("Number of Times larger than the Basline")
-        plt.ylabel("SNR(dB)")
-        plt.savefig("snr_noise.png")
-        plt.show()
       
         diff = int(Layer_1/2)
         i_s = i_s[:-diff]
@@ -389,16 +379,16 @@ with tf.Session() as sess:
        
         f = np.linspace(0, fs, 32)
 
-        fig = figure(1)
+        #fig = figure(1)
 
-        ax1 = fig.add_subplot(211)
-        ax1.pcolormesh(t, f, data.T)
+        #ax1 = fig.add_subplot(211)
+        #ax1.pcolormesh(t, f, data.T)
         #ax1.plot(t, c)
         #ax1.margins(x=0,y=0)
         
-        ax2 = fig.add_subplot(212)
+        #ax2 = fig.add_subplot(212)
         #ax2.pcolormesh(t, f, data.T)
-        ax2.pcolormesh(t_sp, f_sp, Sxx)
+        #ax2.pcolormesh(t_sp, f_sp, Sxx)
 
         #ax2 = fig.add_subplot(313)
         #ax2.plot(t, p)
@@ -453,7 +443,7 @@ with tf.Session() as sess:
         ax4.margins(x=0,y=0)
         
         fig.savefig("noise_overview.png")
-        #show()
+        show()
 
         i_s, q_s = carrier(amp, fs, N)
         i_n, q_n, _, _ = noise_complex_sine(1, amp, 0.2, fs, N)
@@ -494,7 +484,7 @@ with tf.Session() as sess:
         ax4.margins(x=0,y=0)
         
         fig.savefig("noise_complex.png")
-        #show()
+        show()
         
         i_s, q_s = carrier(amp, fs, N)
         i_n, q_n, _, _ = noise_chirp(1, amp, 0.2, fs, N)
@@ -547,7 +537,7 @@ with tf.Session() as sess:
         ax4.margins(x=0,y=0)
         
         fig.savefig("noise_chirp.png")
-        #show()
+        show()
         
         i_s, q_s = carrier(amp, fs, N)
         i_n, q_n, _, _ = noise_band(1, amp, 0.2, fs, N)
@@ -600,7 +590,18 @@ with tf.Session() as sess:
         ax4.margins(x=0,y=0)
         
         fig.savefig("noise_band.png")
-        #show()
+        show()
+        
+        plt.semilogx(c_l2n, c_snr, label="Complex Sinusoid")
+        plt.semilogx(ch_l2n, ch_snr, label="Chirp Event")
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+                           ncol=2, mode="expand", borderaxespad=0.)
+        plt.margins(x=0,y=0)
+        plt.ylim(-20,20)
+        plt.xlabel("Number of Times larger than the Basline")
+        plt.ylabel("SNR(dB)")
+        plt.savefig("snr_noise.png")
+        show()
 
 
 
