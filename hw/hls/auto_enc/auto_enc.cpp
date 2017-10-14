@@ -323,45 +323,27 @@ void nn(interface_t in[LAYER_1],
     // ****************************************
 
     // Layer 1
-    /*
-    layer1_t a_l1[LAYER_1];
-    layer1_t h_l1[LAYER_1];
-    interface_t r_l1[LAYER_1];
-    compute_layer<interface_t, layer1_t, weight_t, bias_t, accum_t, interface_t, LAYER_1, LAYER_1, LAYER_1>(h_l0, a_l1, p_w_l1, p_b_l1, h_l0, r_l1);
-    relu<layer1_t, layer1_t, LAYER_1>(a_l1, h_l1);
-    */
-
-    // Layer 2
     layer2_t a_l2[LAYER_2];
     layer2_t h_l2[LAYER_2];
     interface_t r_l2[LAYER_1];
     compute_layer<interface_t, layer2_t, weight_t, bias_t, accum_t, interface_t, LAYER_1, LAYER_2, LAYER_1>(in, a_l2, p_w_l2, p_b_l2, in, r_l2);
     relu<layer2_t, layer2_t, LAYER_2>(a_l2, h_l2);
 
-    // Layer 3
+    // Layer 2
     layer3_t a_l3[LAYER_3];
     layer3_t h_l3[LAYER_3];
     interface_t r_l3[LAYER_1];
     compute_layer<layer2_t, layer3_t, weight_t, bias_t, accum_t, interface_t, LAYER_2, LAYER_3, LAYER_1>(h_l2, a_l3, p_w_l3, p_b_l3, r_l2, r_l3);
     relu<layer3_t, layer3_t, LAYER_3>(a_l3, h_l3);
 
-    // Layer 4
-    /*
-    layer4_t a_l4[LAYER_3];
-    layer4_t h_l4[LAYER_3];
-    interface_t r_l4[LAYER_1];
-    compute_layer<layer3_t, layer4_t, weight_t, bias_t, accum_t, interface_t, LAYER_3, LAYER_3, LAYER_1>(h_l3, a_l4, p_w_l4, p_b_l4, r_l3, r_l4);
-    relu<layer4_t, layer4_t, LAYER_3>(a_l4, h_l4);
-    */
-
-    // Layer 5
+    // Layer 3
     layer5_t a_l5[LAYER_2];
     layer5_t h_l5[LAYER_2];
     interface_t r_l5[LAYER_1];
     compute_layer<layer3_t, layer5_t, weight_t, bias_t, accum_t, interface_t, LAYER_3, LAYER_2, LAYER_1>(h_l3, a_l5, p_w_l5, p_b_l5, r_l3, r_l5);
     relu<layer5_t, layer5_t, LAYER_2>(a_l5, h_l5);
 
-    // Layer 6
+    // Layer 4
     interface_t h_l6[LAYER_1];
     interface_t r_l6[LAYER_1];
     compute_layer<layer5_t, interface_t, weight_t, bias_t, accum_t, interface_t, LAYER_2, LAYER_1, LAYER_1>(h_l5, out, p_w_l6, p_b_l6, r_l5, ref);
