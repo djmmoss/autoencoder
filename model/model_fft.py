@@ -41,7 +41,7 @@ def noise_tamper(n_l, amp, fs=5e3, N=1e4):
         return (noise, n_start, n_end)
 
 def noise_repeat(n_l, amp, fs=5e3, N=1e4):
-        # Repeat Carrier at a very close frequency 
+        # Repeat Carrier at a very close frequency
         time = np.arange(N) / float(fs)
         noise = n_l*amp * np.sin(2*np.pi*1.9e3*time)
         n_start = int(len(time)*0.3)
@@ -62,7 +62,7 @@ def plot_spectrum(t, f, p_pred, n_dat, l2norm, filename):
         ax3 = fig.add_subplot(313)
         ax3.plot(t, l2norm)
         ax3.margins(x=0,y=0)
-        
+
         fig.savefig(filename + ".png")
         show()
 
@@ -74,12 +74,12 @@ def calc_snr(noise, signal):
 
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        noise = np.random.normal(scale=0.001, size=time.shape) 
+        noise = np.random.normal(scale=0.001, size=time.shape)
         mod = 25*np.cos(2*np.pi*5*time) + noise
         i = amp*np.cos(mod)
         q = amp*np.sin(mod)
         #c_test = amp * np.cos(2*np.pi*2e3*time + mod)
-        # c = i*np.cos(2*np.pi*2e3*time) - q*np.sin(2*np.pi*2e3*time) 
+        # c = i*np.cos(2*np.pi*2e3*time) - q*np.sin(2*np.pi*2e3*time)
         return (i, q)
 
 def make_carrier(amp, fs, N, window):
@@ -134,10 +134,10 @@ def print_fft_w(L1):
     f.write("static cplx fft_w [" + str(L1) + "] = {")
     for i in range(1, L1):
         val = np.exp(2j*np.pi*i*(i/L1))
-        f.write("{ .re = " + str(np.real(val)) + ", .im = " + str(np.imag(val)) + "},\n")
+        f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "},\n")
 
     val = np.exp(2j*np.pi*L1*(L1/L1))
-    f.write("{ .re = " + str(np.real(val)) + ", .im = " + str(np.imag(val)) + "}};")
+    f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "}};")
     f.flush()
     f.close()
 
@@ -259,9 +259,10 @@ with tf.Session() as sess:
         print("MSE(Denoise): ", np.mean(np.square(p_pred_n - y_test)))
         print("MSE(Vs Corrupted): ", np.mean(np.square(p_pred_n - x_test)))
         l2norm = np.sum(np.square(p_pred_n - x_test), 1)
-        
+
         data_path = "data/"
-        np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
+        np.savetxt(data_path + 'data_i.out', i_s, delimiter=',')
+        np.savetxt(data_path + 'data_q.out', q_s, delimiter=',')
         np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
         print_weights(data_path, n_weights)
         print_biases(data_path, n_biases)
@@ -269,14 +270,14 @@ with tf.Session() as sess:
         print_fft_w(int(Layer_1/2))
 
         p_pred = sess.run([pred], feed_dict={x: data})[0]
-      
+
         diff = int(Layer_1/2)
         i_s = i_s[:-diff]
         q_s = q_s[:-diff]
-        t = np.linspace(0, 1, len(i_s)) 
-        c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t) 
+        t = np.linspace(0, 1, len(i_s))
+        c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t)
         f_sp, t_sp, Sxx = signal.spectrogram(c, fs, window='blackmanharris', nperseg=63, noverlap=62)
-        
+
         i_p = []
         q_p = []
         for win in p_pred:
@@ -287,24 +288,24 @@ with tf.Session() as sess:
 
         i_p = np.array(i_p)
         q_p = np.array(q_p)
-        p = i_p*np.cos(2*np.pi*2e3*t) - q_p*np.sin(2*np.pi*2e3*t) 
+        p = i_p*np.cos(2*np.pi*2e3*t) - q_p*np.sin(2*np.pi*2e3*t)
 
         fig = figure(1)
 
         ax1 = fig.add_subplot(311)
         ax1.plot(t, c)
         ax1.margins(x=0,y=0)
-        
+
         ax2 = fig.add_subplot(312)
         ax2.pcolormesh(t_sp, f_sp, Sxx)
 
         ax2 = fig.add_subplot(313)
         ax2.plot(t, p)
         ax2.margins(x=0,y=0)
-        
+
         show()
 
- 
+
 
         """
         noise_level = np.linspace(0.00001, 0.002, 100)
@@ -315,12 +316,12 @@ with tf.Session() as sess:
         for n_l in noise_level:
             noise, n_start, n_end = noise_band(n_l, 0.001, fs, N)
             x_n = c + noise
-            
+
             snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
+
             #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
             #n_dat = Sxx_n.T
-            
+
             n_dat = make_data(x_n, window)
 
             # Display some Results
@@ -328,7 +329,7 @@ with tf.Session() as sess:
             l2norm = np.sum(np.square(p_pred - n_dat), 1)
             gb_f_snr.append(snr)
             gb_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
+
             #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
 
 
@@ -340,12 +341,12 @@ with tf.Session() as sess:
         for n_l in noise_level:
             noise, n_start, n_end = noise_rogue(n_l, amp, fs, N)
             x_n = c + noise
-           
+
             snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
+
             #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
             #n_dat = Sxx_n.T
-            
+
             n_dat = make_data(x_n, window)
 
             # Display some Results
@@ -353,9 +354,9 @@ with tf.Session() as sess:
             l2norm = np.sum(np.square(p_pred - n_dat), 1)
             rs_f_snr.append(snr)
             rs_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
+
             #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
-            
+
         noise_level = np.linspace(0.1, 0.999999, 200)
 
         tc_f_snr = []
@@ -364,12 +365,12 @@ with tf.Session() as sess:
         for n_l in noise_level:
             noise, n_start, n_end = noise_tamper(n_l, amp, fs, N)
             x_n = c + noise
-            
+
             snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
+
             #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
             #n_dat = Sxx_n.T
-            
+
             n_dat = make_data(x_n, window)
 
             # Display some Results
@@ -377,9 +378,9 @@ with tf.Session() as sess:
             l2norm = np.sum(np.square(p_pred - n_dat), 1)
             tc_f_snr.append(snr)
             tc_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
+
             #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
-       
+
         noise_level = np.linspace(0.1, 1, 100)
         noise_level = np.concatenate((noise_level, np.linspace(1, 21, 100)))
 
@@ -391,10 +392,10 @@ with tf.Session() as sess:
             x_n = c + noise
 
             snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
+
             #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
             #n_dat = Sxx_n.T
-            
+
             n_dat = make_data(x_n, window)
 
             # Display some Results
@@ -407,13 +408,13 @@ with tf.Session() as sess:
 
         gb_f_snr = np.array(gb_f_snr)
         gb_f_l2n = np.array(gb_f_l2n)
-        
+
         rs_f_snr = np.array(rs_f_snr)
         rs_f_l2n = np.array(rs_f_l2n)
-        
+
         tc_f_snr = np.array(tc_f_snr)
         tc_f_l2n = np.array(tc_f_l2n)
-        
+
         rc_f_snr = np.array(rc_f_snr)
         rc_f_l2n = np.array(rc_f_l2n)
 
@@ -438,36 +439,36 @@ with tf.Session() as sess:
 
         p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
         l2norm = np.sum(np.square(p_pred - n_dat), 1)
-        
-        
 
-        """    
+
+
+        """
         # High Period of Noise for some time
         noise, _, _ = noise_band(1, 0.01, fs, N)
         x_n = c + noise
-            
+
         f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
         #n_dat = Sxx_n.T
         n_dat = make_data(x_n, window)
-        
+
         p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
         l2norm = np.sum(np.square(p_pred - n_dat), 1)
 
         plot_spectrum(t, f, p_pred, n_dat, l2norm, "noise_band.png")
- 
+
         # Rogue Signal for sometime
         noise, _, _ = noise_rogue(1, amp, fs, N)
         x_n = c + noise
-        
+
         f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
         #n_dat = Sxx_n.T
         n_dat = make_data(x_n, window)
-        
+
         p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
         l2norm = np.sum(np.square(p_pred - n_dat), 1)
 
         plot_spectrum(t, f, p_pred, n_dat, l2norm, "noise_rogue.png")
-        
+
         step_rate = np.array(step_rate)
         loss_rate = np.array(loss_rate)
 

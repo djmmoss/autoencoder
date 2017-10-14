@@ -93,6 +93,38 @@ int read_file_1Df(const char * filename, dataType data[samples]) {
 	   return 0;
 }
 
+template <class dataType, unsigned int samples>
+int read_file_1D_cplx(const char * filename, const char * filename2, dataType data[samples]) {
+	  FILE *fp, *fp2;
+	  fp = fopen(filename, "r");
+	  fp2 = fopen(filename2, "r");
+	  if (fp == 0) {
+	    return -1;
+	  }
+	  if (fp2 == 0) {
+	    return -1;
+	  }
+	  // Read data from file
+	   float newval;
+	   for (int ii = 0; ii < samples; ii++){
+		   if (fscanf(fp, "%f\n", &newval) != 0){
+			   data[ii].re = newval;
+		   } else {
+			   return -2;
+		   }
+	   }
+	   fclose(fp);
+	   for (int ii = 0; ii < samples; ii++){
+		   if (fscanf(fp2, "%f\n", &newval) != 0){
+			   data[ii].im = newval;
+		   } else {
+			   return -2;
+		   }
+	   }
+	   fclose(fp2);
+	   return 0;
+}
+
 template <class dataType, unsigned int samples, unsigned int window>
 int write_binary_file(const char * filename, dataType data[samples][window]) {
 	  FILE *fp;
@@ -154,12 +186,12 @@ int main(int argc, char **argv)
   // 1-Layer test
 
   interface_t  result[100];
-  interface_t  data[100];
+  cplx  data[100];
   float expected[100];
 
   // Load data from file
   int rval = 0;
-  rval = read_file_1Df<interface_t, 100>("data/data.out", data);
+  rval = read_file_1D_cplx<cplx, 100>("data/data_i.out", "data/data_q.out", data);
   rval = read_file_1Df<float, 100>("data/expected.out", expected);
   //rval = write_binary_file_1D<short, 100>("data/test_in.bin", data);
 
@@ -170,7 +202,7 @@ int main(int argc, char **argv)
   int err_cnt = 0;
 
   for (int isample=0; isample < 100; isample++) {
-	  hls::stream<interface_t> data_str;
+	  hls::stream<cplx> data_str;
       data_str << data[isample];
 
   	  hls::stream<interface_t> res_str;

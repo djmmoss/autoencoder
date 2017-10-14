@@ -29,8 +29,6 @@
 #define W_WIDTH 16
 #define I_WIDTH 5
 
-#define W 1.21695220551 // For N = 32
-
 typedef ap_fixed<W_WIDTH,I_WIDTH> interface_t;
 
 typedef ap_fixed<32,10> accum_t;
@@ -76,13 +74,13 @@ void short2fxd_stream(hls::stream<short> &in, hls::stream<interface_t> &out);
 
 // Prototype of top level function for C-synthesis
 void auto_enc(
-      hls::stream<interface_t> &data,
+      hls::stream<cplx> &data,
       hls::stream<interface_t> &res,
       unsigned short &const_size_in,
       unsigned short &const_size_out,
-      unsigned int &rd_addr,
-      unsigned int &wr_addr,
-      interface_t &wr_val,
-      interface_t &rd_val);
+      unsigned int rd_addr,
+      unsigned int wr_addr,
+      interface_t wr_val,
+      interface_t rd_val);
 
 #endif

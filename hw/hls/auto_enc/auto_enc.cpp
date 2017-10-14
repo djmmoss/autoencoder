@@ -476,6 +476,7 @@ void fft( cplx pfw[N], cplx pfs[N], interface_t out[N]) {
                 iw += (1<<1);//edirts;
             }
         }
+    /*
         for( block=0; block<N; block+=(STRIDE>>2)*2 ) {
             #pragma HLS UNROLL
             pa = block;
@@ -506,6 +507,7 @@ void fft( cplx pfw[N], cplx pfs[N], interface_t out[N]) {
                 iw += (1<<2);//edirts;
             }
         }
+    */
     //last two stages
     for( j=0; j<N; j+=4 ) {
         #pragma HLS UNROLL
@@ -539,11 +541,10 @@ void fft( cplx pfw[N], cplx pfs[N], interface_t out[N]) {
     for (int i = 0; i < N; i++) {
         #pragma HLS UNROLL
         interface_t tmp1, tmp2;
-        #pragma HLS RESOURCE core=MulnS variable=tmp1
-        #pragma HLS RESOURCE core=MulnS variable=tmp2
-        tmp1 = pfs[i].re * pfs[i].re;
-        tmp2 = pfs[i].im * pfs[i].im;
-        out[i] = tmp1 + tmp2;
+        tmp1 = pfs[i].re;
+        tmp2 = pfs[i].im;
+        out[i] = tmp1;
+        out[N+i] = tmp2;
     }
 }
 
@@ -558,8 +559,8 @@ void auto_enc(
       unsigned int wr_addr,
       unsigned int rd_addr,
       interface_t wr_val,
-      interface_t rd_val,
-      interface_t thres_val
+      interface_t rd_val//,
+    //  interface_t thres_val
       )
 {
     // Remove ap ctrl ports (ap_start, ap_ready, ap_idle, etc) since we only use the AXI-Stream ports
@@ -603,24 +604,24 @@ void auto_enc(
     weight_server<LAYER_1, LAYER_2, LAYER_3, LAYER_3, LAYER_2, LAYER_1>(wr_addr, wr_val, rd_addr, rd_val, p_w_l1, p_w_l2, p_w_l3, p_w_l4, p_w_l5, p_w_l6, p_b_l1, p_b_l2, p_b_l3, p_b_l4, p_b_l5, p_b_l6);
 
     // Input Conversion
-    cplx w_out[LAYER_1] = {0};
+    cplx w_out[LAYER_1/2] = {0};
     #pragma HLS ARRAY_PARTITION variable=w_out complete dim=1
 
-    windower<LAYER_1>(data.read(), w_out);
+    windower<LAYER_1/2>(data.read(), w_out);
 
-    cplx fft_in[LAYER_1] = {0};
+    cplx fft_in[LAYER_1/2] = {0};
     interface_t fft_out[LAYER_1];
     #pragma HLS ARRAY_PARTITION variable=fft_in complete dim=1
     #pragma HLS ARRAY_PARTITION variable=fft_w complete dim=1
     #pragma HLS ARRAY_PARTITION variable=fft_out complete dim=1
 
-    for (int i = 0; i < LAYER_1; i++) {
+    for (int i = 0; i < LAYER_1/2; i++) {
         #pragma HLS UNROLL
         fft_in[i].re = w_out[i].re;
         fft_in[i].im = w_out[i].im;
     }
 
-    fft<LAYER_1, 5, LAYER_1/2>(fft_w, fft_in, fft_out);
+    fft<16, 4, 8>(fft_w, fft_in, fft_out);
 
     interface_t nn_in[LAYER_1] = {0};
     interface_t out[LAYER_1] = {0};
@@ -639,10 +640,11 @@ void auto_enc(
 
     interface_t l2norm_res;
     l2norm<LAYER_1>(out, ref, l2norm_res);
+    res << l2norm_res;
 
-    interface_t thres_res;
-    threshold<interface_t, interface_t>(l2norm_res, thres_val, thres_res);
+    //interface_t thres_res;
+    //threshold<interface_t, interface_t>(l2norm_res, thres_val, thres_res);
 
     // Output Conversion
-    res << thres_res;
+    //res << thres_res;
 }
