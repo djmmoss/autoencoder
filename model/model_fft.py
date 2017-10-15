@@ -4,6 +4,7 @@ import sys
 from tqdm import *
 from scipy import signal
 import scipy
+import pickle
 from matplotlib.pyplot import figure, show
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
@@ -232,7 +233,7 @@ Layer_3 = 8
 fs = 5e3
 N = int(1e3)
 amp = 1 
-do_fft = False 
+do_fft = True 
 
 # Synthetic Data
 i_s, q_s = carrier(amp, fs, N)
@@ -310,7 +311,7 @@ with tf.Session() as sess:
 
         loss_rate = []
         step_rate = []
-
+        """
         # Standard Denoising using the uncorrupted signals in the loss functions
         for i in range(30000):
                 if i % 200 == 0:
@@ -369,10 +370,11 @@ with tf.Session() as sess:
         t = np.arange(N) / float(fs)
         si, sq = carrier(amp, fs, N)
 
+        """
         noise_level = np.linspace(20, -20, 20)
        
         tests = 40
-       
+        """ 
         c_snr = np.zeros((20, tests))
         c_l2n = np.zeros((20, tests))
         c_false = np.zeros((20, tests))
@@ -462,22 +464,33 @@ with tf.Session() as sess:
         g_l2n = np.sum(g_l2n, axis=1)/tests
         g_false = np.mean(g_false, axis=1)
         
+        pickle.dump( c_l2n-c_false, open( "c.p", "wb" ) )
+        pickle.dump( ch_l2n-ch_false, open( "ch.p", "wb" ) )
+        pickle.dump( g_l2n-g_false, open( "g.p", "wb" ) )
+        """ 
+        c_time = pickle.load( open( "c_time.p", "rb" ) )
+        ch_time = pickle.load( open( "ch_time.p", "rb" ) )
+        g_time = pickle.load( open( "g_time.p", "rb" ) )
+        
+        c_freq = pickle.load( open( "c_freq.p", "rb" ) )
+        ch_freq = pickle.load( open( "ch_freq.p", "rb" ) )
+        g_freq = pickle.load( open( "g_freq.p", "rb" ) )
+
         plt.close('all')
-        #plt.plot(c_snr, c_l2n, label="Complex Sinusoid")
-        plt.plot(c_snr, c_l2n-c_false, label="Complex Sinusoid")
-        plt.plot(ch_snr, ch_l2n-ch_false, label="Chirp Event")
-        plt.plot(g_snr, g_l2n-g_false, label="Gaussian Band")
-        #plt.plot(c_snr, c_false, label="Complex Sinusoid (False)")
-        #plt.plot(ch_snr, ch_l2n, label="Chirp Event")
-        #plt.plot(ch_snr, ch_false, label="Chirp Event (False)")
-        #plt.plot(g_snr, g_l2n, label="Gaussian Noise")
-        #plt.plot(g_snr, g_false, label="Gaussian Noise (False)")
-        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-                           ncol=3, mode="expand", borderaxespad=0.)
+        plt.plot(noise_level, c_freq, label="Complex Sinusoid (Freq)")
+        plt.plot(noise_level, ch_freq, label="Chirp Event (Freq)")
+        plt.plot(noise_level, g_freq, label="Gaussian Band (Freq)")
+
+        plt.plot(noise_level, c_time, label="Complex Sinusoid (Time)")
+        plt.plot(noise_level, ch_time, label="Chirp Event (Time)")
+        plt.plot(noise_level, g_time, label="Gaussian Band (Time)")
+        plt.legend()
         plt.margins(x=0,y=0)
         plt.ylim(0,1.05)
         plt.xlim(-20,20)
         plt.xlabel("SNR(dB)")
-        plt.ylabel("Probability of Detection")
+        plt.ylabel("Probability of Correct Detection")
+        plt.tight_layout()   
         plt.savefig("snr_noise.pdf", format="pdf")
         show()
+        
