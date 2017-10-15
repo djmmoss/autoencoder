@@ -488,9 +488,9 @@ with tf.Session() as sess:
         plt.margins(x=0,y=0)
         plt.ylim(0,1.05)
         plt.xlim(-20,20)
-        plt.xlabel("SNR(dB)")
+        plt.xlabel("Signal-to-Anomaly Ratio (dB)")
         plt.ylabel("Probability of Correct Detection")
         plt.tight_layout()   
-        plt.savefig("snr_noise.pdf", format="pdf")
+        plt.savefig("sar_noise.pdf", format="pdf")
         show()
         
