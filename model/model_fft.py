@@ -230,11 +230,17 @@ Layer_2 = 16
 Layer_3 = 8
 
 fs = 5e3
-N = 1e3
+N = int(1e3)
 amp = 2 * np.sqrt(2)
-do_fft = False 
+do_fft = True 
 
+# Synthetic Data
 i_s, q_s = carrier(amp, fs, N)
+
+# Real Data
+#x = scipy.fromfile(open("fm_data.bin"), dtype=scipy.complex64)
+#i_s = np.real(x[:N])
+#q_s = np.imag(x[:N])
 
 data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
 
@@ -365,13 +371,13 @@ with tf.Session() as sess:
 
         noise_level = np.linspace(-20, 20, 20)
        
-        tests = 10
+        tests = 5
 
         c_snr = np.zeros((20, tests))
         c_l2n = np.zeros((20, tests))
         c_false = np.zeros((20, tests))
-        for j in range(tests):
-            for i in tqdm(range(20)):
+        for j in tqdm(range(tests)):
+            for i in range(20):
                 snr = 0.0
                 while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
                     noise = np.random.uniform(0.00001, 10, 1)
@@ -387,16 +393,18 @@ with tf.Session() as sess:
                 p_pred = sess.run([pred], feed_dict={x: data})[0]
                 l2norm = np.sum(np.square(p_pred - data),1)
                 c_snr[i,j] = snr
-                c_l2n[i,j] = np.mean(l2norm[n_start:n_end])/np.mean(l2norm) > 1
+                c_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
                 l2norm[n_start:n_end] = 0
-                num_false = l2norm > np.mean(l2norm)
+                num_false = l2norm > (np.mean(l2norm)*1)
                 c_false[i,j] = np.sum(num_false)/len(num_false)
         
         ch_snr = np.zeros((20, tests))
         ch_l2n = np.zeros((20, tests))
+        ch_l2n_14 = np.zeros((20, tests))
         ch_false = np.zeros((20, tests))
-        for j in range(tests):
-            for i in tqdm(range(20)):
+        ch_false_14 = np.zeros((20, tests))
+        for j in tqdm(range(tests)):
+            for i in range(20):
                 snr = 0.0
                 while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
                     noise = np.random.uniform(0.00001, 10, 1)
@@ -412,23 +420,30 @@ with tf.Session() as sess:
                 p_pred = sess.run([pred], feed_dict={x: data})[0]
                 l2norm = np.sum(np.square(p_pred - data),1)
                 ch_snr[i,j] = snr
-                ch_l2n[i,j] = np.mean(l2norm[n_start:n_end])/np.mean(l2norm) > 1
+                ch_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
+                ch_l2n_14[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1.4) > 1
                 l2norm[n_start:n_end] = 0
-                num_false = l2norm > np.mean(l2norm)
+                num_false = l2norm > (np.mean(l2norm*1))
+                num_false_14 = l2norm > (np.mean(l2norm*1.4))
                 ch_false[i,j] = np.sum(num_false)/len(num_false)
+                ch_false_14[i,j] = np.sum(num_false_14)/len(num_false_14)
         
         c_snr = np.mean(c_snr, axis=1)
         c_l2n = np.sum(c_l2n, axis=1)/tests
         c_false = np.mean(c_false, axis=1)
         ch_snr = np.mean(ch_snr, axis=1)
         ch_l2n = np.sum(ch_l2n, axis=1)/tests
+        ch_l2n_14 = np.sum(ch_l2n_14, axis=1)/tests
         ch_false = np.mean(ch_false, axis=1)
+        ch_false_14 = np.mean(ch_false_14, axis=1)
         
         plt.close('all')
         plt.plot(c_snr, c_l2n, label="Complex Sinusoid")
         plt.plot(c_snr, c_false, label="Complex Sinusoid (False)")
         plt.plot(ch_snr, ch_l2n, label="Chirp Event")
+        #plt.plot(ch_snr, ch_l2n_14, label="Chirp Event (1.4 Threshold Scale")
         plt.plot(ch_snr, ch_false, label="Chirp Event (False)")
+        #plt.plot(ch_snr, ch_false_14, label="Chirp Event (False - 1.4 Threshold Scale)")
         plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
                            ncol=2, mode="expand", borderaxespad=0.)
         plt.margins(x=0,y=0)
