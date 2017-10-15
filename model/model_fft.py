@@ -129,7 +129,7 @@ def plot_results(t, f, s, data, l2norm, filename, do_fft=True):
         ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
         plt.tight_layout()   
     
-        plt.savefig(filename, format='pdf')
+        plt.savefig(filename, format='png')
         plt.show()
 
 def calc_snr(noise, signal):
@@ -358,7 +358,7 @@ with tf.Session() as sess:
         q_s = q_s[:-diff]
         c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t) 
         
-        plot_results(t, f, c, data, l2norm, "noise_overview.pdf", do_fft)
+        plot_results(t, f, c, data, l2norm, "noise_overview.png", do_fft)
 
         t = np.arange(N) / float(fs)
         si, sq = carrier(amp, fs, N)
