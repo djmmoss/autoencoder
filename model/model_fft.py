@@ -31,7 +31,7 @@ def noise_band(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
 
 def noise_complex_sine(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
         time = np.arange(N) / float(fs)
-        fs = np.random.uniform(fs/2, fs*2, 1) 
+        fs = np.random.uniform(fs/2, fs*2, 1)
         mod = amp*np.exp(2j*np.pi*fs*time)
         i = n_l*np.real(mod)
         q = n_l*np.imag(mod)
@@ -56,10 +56,10 @@ def noise_chirp(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
             s1 = np.random.uniform(loc_s,loc_e,1)
         n_start = int(len(time)*s1)
         n_end = int(len(time)*(s1+siz))
-        
+
         length = int(len(time[n_start:n_end]))
-        fs1 = np.random.uniform(fs/2, fs*2, 1) 
-        fs2 = np.random.uniform(fs/2, fs*2, 1) 
+        fs1 = np.random.uniform(fs/2, fs*2, 1)
+        fs2 = np.random.uniform(fs/2, fs*2, 1)
         freq = np.linspace(fs1, fs2, length)
         freq_start = np.ones(len(time[:n_start]))*fs1
         freq_end = np.ones(len(time[n_end:]))*fs2
@@ -140,14 +140,14 @@ def calc_snr(noise, signal):
 
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        noise = np.random.normal(scale=0.001, size=time.shape) 
+        noise = np.random.normal(scale=0.001, size=time.shape)
         mod_2 = 0.5*np.cos(2*np.pi*25*time)
         mod = 25*np.cos(2*np.pi*5*time + mod_2)
         #mod = 500*np.cos(2*np.pi*0.25*time)# + noise
         i = amp*np.cos(mod)
         q = amp*np.sin(mod)
         #c_test = amp * np.sin(2*np.pi*2e3*time + mod)
-        #c = i*np.sin(2*np.pi*2e3*time) + q*np.cos(2*np.pi*2e3*time) 
+        #c = i*np.sin(2*np.pi*2e3*time) + q*np.cos(2*np.pi*2e3*time)
         return (i, q)
 
 def make_carrier(amp, fs, N, window):
@@ -202,10 +202,10 @@ def print_fft_w(L1):
     f.write("static cplx fft_w [" + str(L1) + "] = {")
     for i in range(1, L1):
         val = np.exp(2j*np.pi*i*(i/L1))
-        f.write("{ .re = " + str(np.real(val)) + ", .im = " + str(np.imag(val)) + "},\n")
+        f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "},\n")
 
     val = np.exp(2j*np.pi*L1*(L1/L1))
-    f.write("{ .re = " + str(np.real(val)) + ", .im = " + str(np.imag(val)) + "}};")
+    f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "}};")
     f.flush()
     f.close()
 
@@ -318,9 +318,10 @@ with tf.Session() as sess:
         print("MSE(Denoise): ", np.mean(np.square(p_pred_n - y_test)))
         print("MSE(Vs Corrupted): ", np.mean(np.square(p_pred_n - x_test)))
         l2norm = np.sum(np.square(p_pred_n - x_test), 1)
-        
+
         data_path = "data/"
-        np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
+        np.savetxt(data_path + 'data_i.out', i_s, delimiter=',')
+        np.savetxt(data_path + 'data_q.out', q_s, delimiter=',')
         np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
         print_weights(data_path, n_weights)
         print_biases(data_path, n_biases)
@@ -377,9 +378,9 @@ with tf.Session() as sess:
                     i_n, q_n, n_start, n_end = noise_complex_sine(noise, amp, 0.2, fs, N)
                     i_s = si + i_n
                     q_s = sq + q_n
-                    
-                    s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
-                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t) 
+
+                    s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
                     snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
 
                 data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
@@ -402,9 +403,9 @@ with tf.Session() as sess:
                     i_n, q_n, n_start, n_end = noise_chirp(noise, amp, 0.2, fs, N)
                     i_s = si + i_n
                     q_s = sq + q_n
-                    
-                    s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t) 
-                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t) 
+
+                    s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
                     snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
 
                 data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
@@ -416,7 +417,6 @@ with tf.Session() as sess:
                 num_false = l2norm > np.mean(l2norm)
                 ch_false[i,j] = np.sum(num_false)/len(num_false)
         
-
         c_snr = np.mean(c_snr, axis=1)
         c_l2n = np.sum(c_l2n, axis=1)/tests
         c_false = np.mean(c_false, axis=1)

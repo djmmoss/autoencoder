@@ -41,18 +41,24 @@ typedef ap_fixed<16,5> layer3_t;
 typedef ap_fixed<16,5> layer4_t;
 typedef ap_fixed<16,5> layer5_t;
 
-/*
-typedef half interface_t;
-typedef half accum_t;
-typedef half weight_t;
-typedef half bias_t;
 
-typedef half layer1_t;
-typedef half layer2_t;
-typedef half layer3_t;
-typedef half layer4_t;
-typedef half layer5_t;
+/*
+typedef float interface_t;
+typedef float accum_t;
+typedef float weight_t;
+typedef float bias_t;
+
+typedef float layer1_t;
+typedef float layer2_t;
+typedef float layer3_t;
+typedef float layer4_t;
+typedef float layer5_t;
 */
+
+typedef struct comp {
+    interface_t re;
+    interface_t im;
+} cplx;
 
 short float2short(float f, int i_width);
 float short2float(short s, int i_width);
@@ -68,13 +74,13 @@ void short2fxd_stream(hls::stream<short> &in, hls::stream<interface_t> &out);
 
 // Prototype of top level function for C-synthesis
 void auto_enc(
-      hls::stream<interface_t> &data,
+      hls::stream<cplx> &data,
       hls::stream<interface_t> &res,
       unsigned short &const_size_in,
       unsigned short &const_size_out,
-      unsigned int &rd_addr,
-      unsigned int &wr_addr,
-      interface_t &wr_val,
-      interface_t &rd_val);
+      unsigned int rd_addr,
+      unsigned int wr_addr,
+      interface_t wr_val,
+      interface_t rd_val);
 
 #endif
