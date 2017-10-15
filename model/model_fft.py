@@ -12,10 +12,10 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 def noise_band(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
         time = np.arange(N) / float(fs)
-        noise_power = n_l * amp * fs / 2
+        noise_power = amp * fs / 2
         noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        i = amp*np.cos(noise)
-        q = amp*np.sin(noise)
+        i = n_l * np.cos(noise)
+        q = n_l * np.sin(noise)
         
         s1 = np.random.uniform(loc_s,loc_e,1)
         while (s1 + siz) > 1.0:
@@ -32,9 +32,9 @@ def noise_band(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
 def noise_complex_sine(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
         time = np.arange(N) / float(fs)
         fs = np.random.uniform(fs/2, fs*2, 1)
-        mod = amp*np.exp(2j*np.pi*fs*time)
-        i = n_l*np.real(mod)
-        q = n_l*np.imag(mod)
+        mod = n_l*amp*np.exp(2j*np.pi*fs*time)
+        i = np.real(mod)
+        q = np.imag(mod)
         
         s1 = np.random.uniform(loc_s,loc_e,1)
         while (s1 + siz) > 1.0:
@@ -134,9 +134,9 @@ def plot_results(t, f, s, data, l2norm, filename, do_fft=True):
 
 def calc_snr(noise, signal):
             # Calculate SNR
-            p_noise = 1/len(noise)*np.sum(np.square(np.abs(noise)))
-            p_sn = 1/len(signal)*np.sum(np.square(np.abs(signal)))
-            return 10*np.log10((p_sn - p_noise)/p_noise)
+            p_noise = np.sqrt(1/len(noise)*np.sum(np.square(np.abs(noise))))
+            p_sn = np.sqrt(1/len(signal)*np.sum(np.square(np.abs(signal))))
+            return 10*np.log10((p_sn-p_noise)/p_noise)
 
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
@@ -231,8 +231,8 @@ Layer_3 = 8
 
 fs = 5e3
 N = int(1e3)
-amp = 2 * np.sqrt(2)
-do_fft = True 
+amp = 1 
+do_fft = False 
 
 # Synthetic Data
 i_s, q_s = carrier(amp, fs, N)
@@ -343,15 +343,15 @@ with tf.Session() as sess:
         f = np.linspace(0, fs, 32)
         
         i_s, q_s = carrier(amp, fs, N)
-        i_n, q_n, _, _ = noise_complex_sine(1, amp, 0.05, fs, N, 0, 0.2)
+        i_n, q_n, _, _ = noise_complex_sine(0.5, amp, 0.05, fs, N, 0, 0.2)
         i_s = i_s + i_n
         q_s = q_s + q_n
         
-        i_n, q_n, _, _ = noise_chirp(1, amp, 0.05, fs, N, 0.25, 0.5)
+        i_n, q_n, _, _ = noise_chirp(0.5, amp, 0.05, fs, N, 0.25, 0.5)
         i_s = i_s + i_n
         q_s = q_s + q_n
         
-        i_n, q_n, _, _ = noise_band(1, amp, 0.05, fs, N, 0.55, 1.0)
+        i_n, q_n, _, _ = noise_band(0.5, amp, 0.05, fs, N, 0.55, 1.0)
         i_s = i_s + i_n
         q_s = q_s + q_n
         
@@ -369,10 +369,10 @@ with tf.Session() as sess:
         t = np.arange(N) / float(fs)
         si, sq = carrier(amp, fs, N)
 
-        noise_level = np.linspace(-20, 20, 20)
+        noise_level = np.linspace(20, -20, 20)
        
-        tests = 5
-
+        tests = 40
+       
         c_snr = np.zeros((20, tests))
         c_l2n = np.zeros((20, tests))
         c_false = np.zeros((20, tests))
@@ -387,7 +387,7 @@ with tf.Session() as sess:
 
                     s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t)
                     s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
-                    snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
+                    snr = calc_snr(s_n, s)
 
                 data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
                 p_pred = sess.run([pred], feed_dict={x: data})[0]
@@ -398,11 +398,35 @@ with tf.Session() as sess:
                 num_false = l2norm > (np.mean(l2norm)*1)
                 c_false[i,j] = np.sum(num_false)/len(num_false)
         
+        g_snr = np.zeros((20, tests))
+        g_l2n = np.zeros((20, tests))
+        g_false = np.zeros((20, tests))
+        for j in tqdm(range(tests)):
+            for i in range(20):
+                snr = 0.0
+                while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
+                    noise = np.random.uniform(0.00001, 10, 1)
+                    i_n, q_n, n_start, n_end = noise_band(noise, amp, 0.2, fs, N)
+                    i_s = si + i_n
+                    q_s = sq + q_n
+
+                    s = i_s*np.sin(2*np.pi*2e3*t) + q_s*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
+                    snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
+
+                data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+                p_pred = sess.run([pred], feed_dict={x: data})[0]
+                l2norm = np.sum(np.square(p_pred - data),1)
+                g_snr[i,j] = snr
+                g_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
+                l2norm[n_start:n_end] = 0
+                num_false = l2norm > (np.mean(l2norm)*1)
+                g_false[i,j] = np.sum(num_false)/len(num_false)
+        
         ch_snr = np.zeros((20, tests))
         ch_l2n = np.zeros((20, tests))
-        ch_l2n_14 = np.zeros((20, tests))
+        ch_num = np.zeros((20, tests))
         ch_false = np.zeros((20, tests))
-        ch_false_14 = np.zeros((20, tests))
         for j in tqdm(range(tests)):
             for i in range(20):
                 snr = 0.0
@@ -421,31 +445,35 @@ with tf.Session() as sess:
                 l2norm = np.sum(np.square(p_pred - data),1)
                 ch_snr[i,j] = snr
                 ch_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
-                ch_l2n_14[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1.4) > 1
+                num_pred = l2norm > (np.mean(l2norm*1))
+                ch_num[i,j] = np.sum(num_pred)/len(num_pred)
                 l2norm[n_start:n_end] = 0
                 num_false = l2norm > (np.mean(l2norm*1))
-                num_false_14 = l2norm > (np.mean(l2norm*1.4))
                 ch_false[i,j] = np.sum(num_false)/len(num_false)
-                ch_false_14[i,j] = np.sum(num_false_14)/len(num_false_14)
         
         c_snr = np.mean(c_snr, axis=1)
         c_l2n = np.sum(c_l2n, axis=1)/tests
         c_false = np.mean(c_false, axis=1)
         ch_snr = np.mean(ch_snr, axis=1)
         ch_l2n = np.sum(ch_l2n, axis=1)/tests
-        ch_l2n_14 = np.sum(ch_l2n_14, axis=1)/tests
         ch_false = np.mean(ch_false, axis=1)
-        ch_false_14 = np.mean(ch_false_14, axis=1)
+        ch_num = np.mean(ch_num, axis=1)
+        g_snr = np.mean(g_snr, axis=1)
+        g_l2n = np.sum(g_l2n, axis=1)/tests
+        g_false = np.mean(g_false, axis=1)
         
         plt.close('all')
-        plt.plot(c_snr, c_l2n, label="Complex Sinusoid")
-        plt.plot(c_snr, c_false, label="Complex Sinusoid (False)")
-        plt.plot(ch_snr, ch_l2n, label="Chirp Event")
-        #plt.plot(ch_snr, ch_l2n_14, label="Chirp Event (1.4 Threshold Scale")
-        plt.plot(ch_snr, ch_false, label="Chirp Event (False)")
-        #plt.plot(ch_snr, ch_false_14, label="Chirp Event (False - 1.4 Threshold Scale)")
+        #plt.plot(c_snr, c_l2n, label="Complex Sinusoid")
+        plt.plot(c_snr, c_l2n-c_false, label="Complex Sinusoid")
+        plt.plot(ch_snr, ch_l2n-ch_false, label="Chirp Event")
+        plt.plot(g_snr, g_l2n-g_false, label="Gaussian Band")
+        #plt.plot(c_snr, c_false, label="Complex Sinusoid (False)")
+        #plt.plot(ch_snr, ch_l2n, label="Chirp Event")
+        #plt.plot(ch_snr, ch_false, label="Chirp Event (False)")
+        #plt.plot(g_snr, g_l2n, label="Gaussian Noise")
+        #plt.plot(g_snr, g_false, label="Gaussian Noise (False)")
         plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-                           ncol=2, mode="expand", borderaxespad=0.)
+                           ncol=3, mode="expand", borderaxespad=0.)
         plt.margins(x=0,y=0)
         plt.ylim(0,1.05)
         plt.xlim(-20,20)
