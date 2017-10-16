@@ -1,201 +1,159 @@
 import numpy as np
 import tensorflow as tf
 import sys
+from tqdm import *
 from scipy import signal
 import scipy
+import pickle
 from matplotlib.pyplot import figure, show
 import matplotlib.pyplot as plt
+from matplotlib import cm, colors
 
 from tensorflow.examples.tutorials.mnist import input_data
 
-
-def make_mnist(noise_type):
-        mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-
-        y_train = mnist.train.images
-        x_train = []
-        # Apply Noise to each Image
-        for img in y_train:
-                x_train.append(apply_noise(noise_type, img))
-        y_train = np.array(y_train)
-
-        y_test = mnist.test.images
-        x_test = []
-        # Apply Noise to each Image
-        for img in y_test:
-                x_test.append(apply_noise(noise_type, img))
-        y_test = np.array(y_test)
-
-        return (x_train, y_train, x_test, y_test)
-
-def make_sine(noise_type, num, window):
-
-        train_size = int((num-window)*0.8)
-        n = np.linspace(0, 20.0, num)
-
-        # Make the sine wave...
-        a = 1
-        w = 2*np.pi
-        wt = w*n
-        p_phase = w*(n -  np.floor(n))
-
-        i = a*np.cos(0)
-        q = a*np.sin(0)
-        s = i*np.cos(wt) - q*np.sin(wt)
-
-        #s = a*np.cos(2*np.pi*n)
-
-        s_n = apply_noise(noise_type, s)
-
-        n_data = make_data(s_n, window)
-        data = make_data(s, window)
-
-        x_train = n_data[0:train_size,:]
-        y_train = data[0:train_size,:]
-        x_test = n_data[train_size:,:]
-        y_test = data[train_size:,:]
-
-        return (x_train, y_train, x_test, y_test)
-
-def noise_band(n_l, amp, fs=5e3, N=1e4):
+def noise_band(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
         time = np.arange(N) / float(fs)
-        noise_power = n_l * amp * fs / 2
+        noise_power = amp * fs / 2
         noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
-        n_start = int(len(time)*0.2)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
-
-def noise_rogue(n_l, amp, fs=5e3, N=1e4):
-        # Rogue Signal for sometime
-        time = np.arange(N) / float(fs)
-        n_mod = 25*np.cos(2*np.pi*5*time)
-        noise = n_l * amp * np.sin(2*np.pi*5e2*time + n_mod)
-        n_start = int(len(time)*0.6)
-        n_end = int(len(time)*0.7)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
-
-def noise_tamper(n_l, amp, fs=5e3, N=1e4):
-        # Tampering with the main carrier
-        time = np.arange(N) / float(fs)
-        n_mod = 25*np.cos(2*np.pi*5*time)
-        noise = -n_l * amp * np.sin(2*np.pi*2e3*time + n_mod) # Cancel
-        n_start = int(len(time)*0.4)
-        n_end = int(len(time)*0.55)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
-
-def noise_repeat(n_l, amp, fs=5e3, N=1e4):
-        # Repeat Carrier at a very close frequency 
-        time = np.arange(N) / float(fs)
-        noise = n_l*amp * np.sin(2*np.pi*1.9e3*time)
-        n_start = int(len(time)*0.3)
-        n_end = int(len(time)*0.4)
-        noise[:n_start] *= 0
-        noise[n_end:] *= 0
-        return (noise, n_start, n_end)
-
-def plot_spectrum(t, f, p_pred, n_dat, l2norm, filename):
-        fig = figure(1)
-
-        ax1 = fig.add_subplot(311)
-        ax1.pcolormesh(t, f, p_pred.T)
-
-        ax2 = fig.add_subplot(312)
-        ax2.pcolormesh(t, f, n_dat.T)
-
-        ax3 = fig.add_subplot(313)
-        ax3.plot(t, l2norm)
-        ax3.margins(x=0,y=0)
+        i = n_l * np.cos(noise)
+        q = n_l * np.sin(noise)
         
-        fig.savefig(filename + ".png")
-        show()
+        s1 = np.random.uniform(loc_s,loc_e,1)
+        while (s1 + siz) > 1.0:
+            s1 = np.random.uniform(loc_s,loc_e,1)
+        n_start = int(len(time)*s1)
+        n_end = int(len(time)*(s1+siz))
+
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q, n_start, n_end)
+
+def noise_complex_sine(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
+        time = np.arange(N) / float(fs)
+        fs = np.random.uniform(fs/2, fs*2, 1)
+        mod = n_l*amp*np.exp(2j*np.pi*fs*time)
+        i = np.real(mod)
+        q = np.imag(mod)
+        
+        s1 = np.random.uniform(loc_s,loc_e,1)
+        while (s1 + siz) > 1.0:
+            s1 = np.random.uniform(loc_s,loc_e,1)
+        n_start = int(len(time)*s1)
+        n_end = int(len(time)*(s1+siz))
+
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q, n_start, n_end)
+
+def noise_chirp(n_l, amp, siz=0.05, fs=5e3, N=1e4, loc_s=0.0, loc_e=1.0):
+        time = np.arange(N) / float(fs)
+        
+        s1 = np.random.uniform(loc_s,loc_e,1)
+        while (s1 + siz) > 1.0:
+            s1 = np.random.uniform(loc_s,loc_e,1)
+        n_start = int(len(time)*s1)
+        n_end = int(len(time)*(s1+siz))
+
+        length = int(len(time[n_start:n_end]))
+        fs1 = np.random.uniform(fs/2, fs*2, 1)
+        fs2 = np.random.uniform(fs/2, fs*2, 1)
+        freq = np.linspace(fs1, fs2, length)
+        freq_start = np.ones(len(time[:n_start]))*fs1
+        freq_end = np.ones(len(time[n_end:]))*fs2
+        freq = np.concatenate((freq_start, freq))
+        freq = np.concatenate((freq, freq_end))
+        mod = n_l*amp*np.exp(2j*np.pi*freq*time)
+        i = np.real(mod)
+        q = np.imag(mod)
+        i[:n_start] *= 0
+        i[n_end:] *= 0
+        q[:n_start] *= 0
+        q[n_end:] *= 0
+        return (i, q, n_start, n_end)
+
+def make_windows(i, q, window_size, do_fft=True):
+    if do_fft:
+        return make_fft_windows(i, q, window_size)
+    else:
+        return make_iq_windows(i, q, window_size)
+
+def make_iq_windows(i, q, window_size):
+    i_data = make_data(i_s, window_size)
+    q_data = make_data(q_s, window_size)
+    return np.concatenate((i_data, q_data), axis=1)
+
+
+def make_fft_windows(i, q, window_size):
+        sig = i + q*1j
+        sig_window = make_data(sig, window_size)
+
+        data = []
+        for sig_w in sig_window:
+            fft_res = np.fft.fft(sig_w)
+            fft_r = np.real(fft_res)
+            fft_i = np.imag(fft_res)
+            data.append(np.concatenate((fft_r, fft_i)))
+
+        return np.array(data)
+
+
+def plot_results(t, f, s, data, l2norm, filename, do_fft=True):
+       
+        fontsize = 12
+        plt.close('all')
+        fig = plt.figure()
+
+        ax1 = plt.subplot(211)
+        ax2 = plt.subplot(212)
+       
+        if do_fft:
+            norm = colors.Normalize(vmin = np.nanmin(data), vmax = np.nanmax(data))
+            ax1.pcolormesh(t, f, data.T, norm=norm, cmap=cm.inferno)
+            #ax1.set_xlabel('Time', fontsize=fontsize)
+            ax1.set_ylabel('Frequency', fontsize=fontsize)
+            ax1.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        else:
+            ax1.plot(t, s)
+            ax1.set_ylabel('Amplitude', fontsize=fontsize)
+            ax1.margins(x=0,y=0)
+
+
+        ax2.plot(t, l2norm)
+        ax2.axhline(y=np.mean(l2norm), color='r', linestyle='-')
+        ax2.margins(x=0,y=0)
+        ax2.set_xlabel('Time', fontsize=fontsize)
+        ax2.set_ylabel('L2-Norm', fontsize=fontsize)
+        ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        plt.tight_layout()   
+    
+        plt.savefig(filename, format='png')
+        plt.show()
 
 def calc_snr(noise, signal):
             # Calculate SNR
-            p_noise = 1/len(noise)*np.sum(np.square(np.abs(noise)))
-            p_sn = 1/len(signal)*np.sum(np.square(np.abs(signal)))
-            return 10*np.log10((p_sn - p_noise)/p_noise)
+            p_noise = np.sqrt(1/len(noise)*np.sum(np.square(np.abs(noise))))
+            p_sn = np.sqrt(1/len(signal)*np.sum(np.square(np.abs(signal))))
+            return 10*np.log10((p_sn)/p_noise)
 
 def carrier(amp,fs=5e3, N=1e4):
         time = np.arange(N) / float(fs)
-        noise_power = 0.0005
-        noise = np.random.normal(scale=np.sqrt(noise_power), size=time.shape)
+        noise = np.random.normal(scale=0.001, size=time.shape)
         mod_2 = 0.5*np.cos(2*np.pi*25*time)
         mod = 25*np.cos(2*np.pi*5*time + mod_2)
-        carrier = amp * np.sin(2*np.pi*2e3*time + mod) + amp*np.sin(2*np.pi*1e3*time)
+        #mod = 500*np.cos(2*np.pi*0.25*time)# + noise
         i = amp*np.cos(mod)
         q = amp*np.sin(mod)
-        return (time, carrier)
+        #c_test = amp * np.sin(2*np.pi*2e3*time + mod)
+        #c = i*np.sin(2*np.pi*2e3*time) + q*np.cos(2*np.pi*2e3*time)
+        return (i, q)
 
 def make_carrier(amp, fs, N, window):
         t, s = carrier(amp, fs, N)
 
-        data = make_data(s, window)
-        n_data = data
-        train_size = int(len(data)*0.8)
-
-        x_train = n_data[0:train_size,:]
-        y_train = data[0:train_size,:]
-        x_test = n_data[train_size:,:]
-        y_test = data[train_size:,:]
-
-        return (x_train, y_train, x_test, y_test,data)
-
-def apply_noise(noise_type, s):
-        num = len(s)
-        # Create the Noise
-        # None
-        if noise_type == 0:
-                s_n = s
-
-        # Additive Isotropic Gaussian Noise
-        if noise_type == 1:
-                n_level = 0.2
-                noise = np.random.normal(0, n_level, num)
-                s_n = s + noise
-
-                # Calculate SNR
-                p_noise = 1/len(noise)*np.sum(np.square(np.abs(noise)))
-                p_sn = 1/len(s_n)*np.sum(np.square(np.abs(s_n)))
-                snr = 10*np.log10((p_sn - p_noise)/p_noise)
-
-                print("SNR(dB): %.2f" % (snr))
-
-        # Masking Noise : Some fraction of s are set to zero
-        if noise_type == 2:
-                mask_perc = 0.2
-                idx = np.arange(num)
-                s_idx = np.random.choice(idx, int(num*mask_perc), replace=False)
-                s_n = np.zeros(len(s))
-                np.copyto(s_n, s)
-                s_n[s_idx] = 0
-
-        # Salt and Pepper Nosie : Some fraction of s are set to either min or max based on a coin flip
-        if noise_type == 3:
-                s_max = np.max(s)
-                s_min = np.min(s)
-                mask_perc = 0.2
-                idx = np.arange(num)
-                s_idx = np.random.choice(idx, int(num*mask_perc), replace=False)
-                s_n = np.zeros(len(s))
-                np.copyto(s_n, s)
-                flip = np.random.random_sample(len(s_idx))
-                s_n[s_idx[flip > 0.5]] = s_max
-                s_n[s_idx[flip < 0.5]] = s_min
-
-        return s_n
-
-def display_digit(img, lbl):
-    label = lbl.argmax(axis=0)
-    image = img.reshape([28,28])
-    plt.title('Example: %d  Label: %d' % (num, label))
-    plt.imshow(image, cmap=plt.get_cmap('gray_r'))
-    plt.show()
 
 def print_weights(data_path, n_weights):
         for w in n_weights:
@@ -240,76 +198,60 @@ def print_network(L1, L2, L3):
     f.flush()
     f.close()
 
+def print_fft_w(L1):
+    f = open(data_path + "fft_w.h", "w")
+    f.write("static cplx fft_w [" + str(L1) + "] = {")
+    for i in range(1, L1):
+        val = np.exp(2j*np.pi*i*(i/L1))
+        f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "},\n")
+
+    val = np.exp(2j*np.pi*L1*(L1/L1))
+    f.write("{ " + str(np.real(val)) + ", " + str(np.imag(val)) + "}};")
+    f.flush()
+    f.close()
+
+
 def  make_data(data, window_size):
         X = []
 
         win_size = int(window_size)
         for i in range(len(data)-win_size):
                 win = data[i:i+win_size]
-                fft_win = np.fft.fft(win)
-                r_fft_win = np.real(fft_win)
-                i_fft_win = np.imag(fft_win)
-                c_fft_win = np.concatenate((r_fft_win, i_fft_win))
                 X.append(win)
-                #X.append(c_fft_win)
 
         return np.array(X)
 
+# * Layer1: 32
+# * Layer2: 16
+# * Layer3: 8
+# * Layer4: 16
+# * Layer5: 32
+Layer_1 = 32
+Layer_2 = 16
+Layer_3 = 8
+
 fs = 5e3
-N = 1e4
-amp = 2 * np.sqrt(2)
+N = int(1e3)
+amp = 1 
+do_fft = True 
 
-# Dataset Type
-#  0 : Sine
-#  1 : MNIST
-#  2 : Carrier
-dataset_type = 2
+# Synthetic Data
+i_s, q_s = carrier(amp, fs, N)
 
-# Noise Types:
-#  0 : None
-#  1 : Additive Isotripic Gaussian
-#  2 : Masking
-#  3 : Salt and Pepper
-noise_type = 0
+# Real Data
+#x = scipy.fromfile(open("fm_data.bin"), dtype=scipy.complex64)
+#i_s = np.real(x[:N])
+#q_s = np.imag(x[:N])
 
-if dataset_type == 0:
-        # AutoEncoder will look like this:
-        # * Layer1: 64
-        # * Layer2: 32
-        # * Layer3: 16
-        # * Layer4: 16
-        # * Layer5: 32
-        # * Layer6: 64
-        Layer_1 = 32
-        Layer_2 = 16
-        Layer_3 = 8
-        window = Layer_1
-        num = 2000
-        (x_train, y_train, x_test, y_test) = make_sine(noise_type, num, window)
-elif dataset_type == 1:
-        # AutoEncoder will look like this:
-        # * Layer1: 784
-        # * Layer2: 400
-        # * Layer3: 200
-        # * Layer4: 200
-        # * Layer5: 400
-        # * Layer6: 784
-        Layer_1 = 784
-        Layer_2 = 600
-        Layer_3 = 300
-        (x_train, y_train, x_test, y_test) = make_mnist(noise_type)
-elif dataset_type == 2:
-        # * Layer1: 64
-        # * Layer2: 32
-        # * Layer3: 16
-        # * Layer4: 16
-        # * Layer5: 32
-        # * Layer6: 64
-        Layer_1 = 32
-        Layer_2 = 16
-        Layer_3 = 8
-        window = Layer_1
-        (x_train, y_train, x_test, y_test,data) = make_carrier(amp, fs, N, window)
+data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+
+n_data = data
+train_size = int(len(data)*0.8)
+
+x_train = n_data[0:train_size,:]
+y_train = data[0:train_size,:]
+x_test = n_data[train_size:,:]
+y_test = data[train_size:,:]
 
 
 n_weights = {
@@ -367,16 +309,10 @@ with tf.Session() as sess:
 
         sess.run(tf.global_variables_initializer())
 
-
-        # Use the entire data set as the batch
-        # x_train = data[0:train_size,:]
-        # y_train = x_train
-
         loss_rate = []
         step_rate = []
-
         # Standard Denoising using the uncorrupted signals in the loss functions
-        for i in range(20000):
+        for i in range(30000):
                 if i % 200 == 0:
                         p_train_val = sess.run([loss], feed_dict={x: x_train, y: y_train})
                         print('step: %d, loss: %.8f' % (i, p_train_val[0]))
@@ -384,212 +320,195 @@ with tf.Session() as sess:
                         loss_rate.append(p_train_val[0])
                 train_step.run(feed_dict={x: x_train, y: y_train})
 
-
         p_pred_n = sess.run([pred], feed_dict={x: x_test})[0]
         print("MSE(Denoise): ", np.mean(np.square(p_pred_n - y_test)))
         print("MSE(Vs Corrupted): ", np.mean(np.square(p_pred_n - x_test)))
-
-        #data_path = "data/"
-
         l2norm = np.sum(np.square(p_pred_n - x_test), 1)
-        baseline = np.mean(l2norm)
 
-        # Print the Dataset to a file
-        #np.savetxt(data_path + 'data.out', x_test[:,0], delimiter=',')
+        data_path = "data/"
+        np.savetxt(data_path + 'data_i.out', i_s, delimiter=',')
+        np.savetxt(data_path + 'data_q.out', q_s, delimiter=',')
+        np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
+        print_weights(data_path, n_weights)
+        print_biases(data_path, n_biases)
+        print_network(Layer_1, Layer_2, Layer_3)
+        print_fft_w(int(Layer_1/2))
 
-        # Print out the expected predictions
-        #np.savetxt(data_path + 'expected.out', l2norm, delimiter=',')
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        baseline = np.mean(np.sum(np.square(p_pred - data), 1))
+      
+        diff = int(Layer_1/2)
+        t = np.arange(N) / float(fs)
+        t = t[:-diff]
+        f = np.linspace(0, fs, 32)
+        
+        i_s, q_s = carrier(amp, fs, N)
+        i_n, q_n, _, _ = noise_complex_sine(0.5, amp, 0.05, fs, N, 0, 0.2)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+        
+        i_n, q_n, _, _ = noise_chirp(0.5, amp, 0.05, fs, N, 0.25, 0.5)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+        
+        i_n, q_n, _, _ = noise_band(0.5, amp, 0.05, fs, N, 0.55, 1.0)
+        i_s = i_s + i_n
+        q_s = q_s + q_n
+        
 
-        # Save the Weight to a file
-        #print_weights(data_path, n_weights)
-
-        # Save the Biases to a file
-        #print_biases(data_path, n_biases)
-
-        #print_network(Layer_1, Layer_2, Layer_3)
- 
-
-        """
-        noise_level = np.linspace(0.00001, 0.002, 100)
-        noise_level = np.concatenate((noise_level, np.linspace(0.002, 0.2, 100)))
-        gb_f_snr = []
-        gb_f_l2n = []
-
-        for n_l in noise_level:
-            noise, n_start, n_end = noise_band(n_l, 0.001, fs, N)
-            x_n = c + noise
-            
-            snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
-            #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-            #n_dat = Sxx_n.T
-            
-            n_dat = make_data(x_n, window)
-
-            # Display some Results
-            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-            l2norm = np.sum(np.square(p_pred - n_dat), 1)
-            gb_f_snr.append(snr)
-            gb_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
-            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
-
-
-        noise_level = np.linspace(0.1, 1, 100)
-        noise_level = np.concatenate((noise_level, np.linspace(1, 21, 100)))
-        rs_f_snr = []
-        rs_f_l2n = []
-
-        for n_l in noise_level:
-            noise, n_start, n_end = noise_rogue(n_l, amp, fs, N)
-            x_n = c + noise
-           
-            snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
-            #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-            #n_dat = Sxx_n.T
-            
-            n_dat = make_data(x_n, window)
-
-            # Display some Results
-            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-            l2norm = np.sum(np.square(p_pred - n_dat), 1)
-            rs_f_snr.append(snr)
-            rs_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
-            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
-            
-        noise_level = np.linspace(0.1, 0.999999, 200)
-
-        tc_f_snr = []
-        tc_f_l2n = []
-
-        for n_l in noise_level:
-            noise, n_start, n_end = noise_tamper(n_l, amp, fs, N)
-            x_n = c + noise
-            
-            snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
-            #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-            #n_dat = Sxx_n.T
-            
-            n_dat = make_data(x_n, window)
-
-            # Display some Results
-            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-            l2norm = np.sum(np.square(p_pred - n_dat), 1)
-            tc_f_snr.append(snr)
-            tc_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
-            
-            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+        data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+        p_pred = sess.run([pred], feed_dict={x: data})[0]
+        l2norm = np.sum(np.square(p_pred - data), 1)
+        
+        i_s = i_s[:-diff]
+        q_s = q_s[:-diff]
+        c = i_s*np.cos(2*np.pi*2e3*t) - q_s*np.sin(2*np.pi*2e3*t) 
        
-        noise_level = np.linspace(0.1, 1, 100)
-        noise_level = np.concatenate((noise_level, np.linspace(1, 21, 100)))
+        if do_fft:
+            filename = "results/noise_overview_freq.png"
+        else:
+            filename = "results/noise_overview_time.png"
 
-        rc_f_snr = []
-        rc_f_l2n = []
+        plot_results(t, f, c, data, l2norm, filename, do_fft)
 
-        for n_l in noise_level:
-            noise, n_start, n_end = noise_repeat(n_l, amp, fs, N)
-            x_n = c + noise
+        t = np.arange(N) / float(fs)
+        si, sq = carrier(amp, fs, N)
 
-            snr = calc_snr(noise[n_start:n_end], x_n[n_start:n_end])
-            
-            #f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-            #n_dat = Sxx_n.T
-            
-            n_dat = make_data(x_n, window)
+        noise_level = np.linspace(20, -20, 20)
 
-            # Display some Results
-            p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-            l2norm = np.sum(np.square(p_pred - n_dat), 1)
-            rc_f_snr.append(snr)
-            rc_f_l2n.append(np.mean(l2norm[n_start:n_end])/baseline)
+        tests = 40
+        c_snr = np.zeros((20, tests))
+        c_l2n = np.zeros((20, tests))
+        c_false = np.zeros((20, tests))
+        for j in tqdm(range(tests)):
+            for i in range(20):
+                snr = 0.0
+                noise = 0.00001
+                while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
+                    i_n, q_n, n_start, n_end = noise_complex_sine(noise, amp, 0.2, fs, N)
 
-            #print("%.3f - SNR(dB): %.2f, L2-Norm: %.4f, Baseline: %.4f" % (n_l, snr, np.mean(l2norm[n_start:n_end]), np.mean(l2norm[n_end:])))
+                    s = si*np.sin(2*np.pi*2e3*t) + sq*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
+                    snr = calc_snr(s_n, s)
+                    noise *= 1.1
+                    
+                i_s = si + i_n
+                q_s = sq + q_n
 
-        gb_f_snr = np.array(gb_f_snr)
-        gb_f_l2n = np.array(gb_f_l2n)
+                data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+                p_pred = sess.run([pred], feed_dict={x: data})[0]
+                l2norm = np.sum(np.square(p_pred - data),1)
+                c_snr[i,j] = snr
+                c_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
+                l2norm[n_start:n_end] = 0
+                num_false = l2norm > (np.mean(l2norm)*1)
+                c_false[i,j] = np.sum(num_false)/len(num_false)
         
-        rs_f_snr = np.array(rs_f_snr)
-        rs_f_l2n = np.array(rs_f_l2n)
-        
-        tc_f_snr = np.array(tc_f_snr)
-        tc_f_l2n = np.array(tc_f_l2n)
-        
-        rc_f_snr = np.array(rc_f_snr)
-        rc_f_l2n = np.array(rc_f_l2n)
+        g_snr = np.zeros((20, tests))
+        g_l2n = np.zeros((20, tests))
+        g_false = np.zeros((20, tests))
+        for j in tqdm(range(tests)):
+            for i in range(20):
+                snr = 0.0
+                noise = 0.00001
+                while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
+                    i_n, q_n, n_start, n_end = noise_band(noise, amp, 0.2, fs, N)
 
-        plt.semilogx(gb_f_l2n, gb_f_snr, label="Gaussian Band")
-        plt.semilogx(rs_f_l2n, rs_f_snr, label="Rogue Signal")
-        plt.semilogx(tc_f_l2n, tc_f_snr, label="Carrier Tampering")
-        plt.semilogx(rc_f_l2n, rc_f_snr, label="Repeat Carrier f shifted")
-        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-                           ncol=2, mode="expand", borderaxespad=0.)
-        plt.ylim((-20, 20))
+                    s = si*np.sin(2*np.pi*2e3*t) + sq*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
+                    snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
+                    noise *= 1.1
+                    
+                i_s = si + i_n
+                q_s = sq + q_n
+
+                data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+                p_pred = sess.run([pred], feed_dict={x: data})[0]
+                l2norm = np.sum(np.square(p_pred - data),1)
+                g_snr[i,j] = snr
+                g_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
+                l2norm[n_start:n_end] = 0
+                num_false = l2norm > (np.mean(l2norm)*1)
+                g_false[i,j] = np.sum(num_false)/len(num_false)
+        
+        ch_snr = np.zeros((20, tests))
+        ch_l2n = np.zeros((20, tests))
+        ch_num = np.zeros((20, tests))
+        ch_false = np.zeros((20, tests))
+        for j in tqdm(range(tests)):
+            for i in range(20):
+                snr = 0.0
+                noise = 0.00001
+                while((np.abs(snr - noise_level[i]) > 1) or np.isnan(snr)):
+                    i_n, q_n, n_start, n_end = noise_chirp(noise, amp, 0.2, fs, N)
+
+                    s = si*np.sin(2*np.pi*2e3*t) + sq*np.cos(2*np.pi*2e3*t)
+                    s_n = i_n*np.sin(2*np.pi*2e3*t) + q_n*np.cos(2*np.pi*2e3*t)
+                    snr = calc_snr(s_n[n_start:n_end], s[n_start:n_end])
+                    noise *= 1.1
+                    
+                i_s = si + i_n
+                q_s = sq + q_n
+
+                data = make_windows(i_s, q_s, int(Layer_1/2), do_fft)
+                p_pred = sess.run([pred], feed_dict={x: data})[0]
+                l2norm = np.sum(np.square(p_pred - data),1)
+                ch_snr[i,j] = snr
+                ch_l2n[i,j] = np.mean(l2norm[n_start:n_end])/(np.mean(l2norm)*1) > 1
+                num_pred = l2norm > (np.mean(l2norm*1))
+                ch_num[i,j] = np.sum(num_pred)/len(num_pred)
+                l2norm[n_start:n_end] = 0
+                num_false = l2norm > (np.mean(l2norm*1))
+                ch_false[i,j] = np.sum(num_false)/len(num_false)
+        
+        c_snr = np.mean(c_snr, axis=1)
+        c_l2n = np.sum(c_l2n, axis=1)/tests
+        c_false = np.mean(c_false, axis=1)
+        ch_snr = np.mean(ch_snr, axis=1)
+        ch_l2n = np.sum(ch_l2n, axis=1)/tests
+        ch_false = np.mean(ch_false, axis=1)
+        ch_num = np.mean(ch_num, axis=1)
+        g_snr = np.mean(g_snr, axis=1)
+        g_l2n = np.sum(g_l2n, axis=1)/tests
+        g_false = np.mean(g_false, axis=1)
+        
+
+        if do_fft:
+            c_freq = c_l2n-c_false
+            ch_freq = ch_l2n-ch_false
+            g_freq = g_l2n-g_false
+            pickle.dump(c_freq, open( "sar/c_freq.p", "wb" ) )
+            pickle.dump(ch_freq, open( "sar/ch_freq.p", "wb" ) )
+            pickle.dump(g_freq, open( "sar/g_freq.p", "wb" ) )
+            c_time = pickle.load( open( "sar/c_time.p", "rb" ) )
+            ch_time = pickle.load( open( "sar/ch_time.p", "rb" ) )
+            g_time = pickle.load( open( "sar/g_time.p", "rb" ) )
+        else:
+            c_time = c_l2n-c_false
+            ch_time = ch_l2n-ch_false
+            g_time = g_l2n-g_false
+            pickle.dump(c_time, open( "sar/c_time.p", "wb" ) )
+            pickle.dump(ch_time, open( "sar/ch_time.p", "wb" ) )
+            pickle.dump(g_time, open( "sar/g_time.p", "wb" ) )
+            c_freq = pickle.load( open( "sar/c_freq.p", "rb" ) )
+            ch_freq = pickle.load( open( "sar/ch_freq.p", "rb" ) )
+            g_freq = pickle.load( open( "sar/g_freq.p", "rb" ) )
+
+        plt.close('all')
+        plt.plot(noise_level, c_freq, label="Complex Sinusoid (Freq)")
+        plt.plot(noise_level, ch_freq, label="Chirp Event (Freq)")
+        plt.plot(noise_level, g_freq, label="Gaussian Band (Freq)")
+
+        plt.plot(noise_level, c_time, label="Complex Sinusoid (Time)")
+        plt.plot(noise_level, ch_time, label="Chirp Event (Time)")
+        plt.plot(noise_level, g_time, label="Gaussian Band (Time)")
+        plt.legend()
         plt.margins(x=0,y=0)
-        plt.xlabel("Number of Times larger than the Basline")
-        plt.ylabel("SNR(dB)")
-        plt.savefig("snr_noise.png")
-        plt.show()
-        """
-        # High Period of Noise for some time
-        t, c = carrier(amp, fs, N)
-        x_n = c
-
-        n_dat = make_data(x_n, Layer_1)
-
-        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-        l2norm = np.sum(np.square(p_pred - n_dat), 1)
-        
-        fig = figure(1)
-
-        ax1 = fig.add_subplot(211)
-        ax1.plot(t[:-32], c[:-32])
-        ax1.margins(x=0,y=0)
-
-        ax2 = fig.add_subplot(212)
-        ax2.plot(t[:-32], l2norm)
-        ax2.margins(x=0,y=0)
-        
+        plt.ylim(0,1.05)
+        plt.xlim(-20,20)
+        plt.xlabel("Signal-to-Anomaly Ratio (dB)")
+        plt.ylabel("Probability of Correct Detection")
+        plt.tight_layout()   
+        plt.savefig("results/sar_noise.pdf", format="pdf")
         show()
         
-
-        """    
-        # High Period of Noise for some time
-        noise, _, _ = noise_band(1, 0.01, fs, N)
-        x_n = c + noise
-            
-        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-        #n_dat = Sxx_n.T
-        n_dat = make_data(x_n, window)
-        
-        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-        l2norm = np.sum(np.square(p_pred - n_dat), 1)
-
-        plot_spectrum(t, f, p_pred, n_dat, l2norm, "noise_band.png")
- 
-        # Rogue Signal for sometime
-        noise, _, _ = noise_rogue(1, amp, fs, N)
-        x_n = c + noise
-        
-        f_n, t_n, Sxx_n = signal.spectrogram(x_n, fs, window='blackmanharris', nperseg=63, noverlap=62)
-        #n_dat = Sxx_n.T
-        n_dat = make_data(x_n, window)
-        
-        p_pred = sess.run([pred], feed_dict={x: n_dat})[0]
-        l2norm = np.sum(np.square(p_pred - n_dat), 1)
-
-        plot_spectrum(t, f, p_pred, n_dat, l2norm, "noise_rogue.png")
-        
-        step_rate = np.array(step_rate)
-        loss_rate = np.array(loss_rate)
-
-        plt.plot(step_rate, loss_rate)
-        plt.ylim((0, 0.00002))
-        plt.xlabel("Time")
-        plt.ylabel("Loss")
-        plt.margins(x=0,y=0)
-        plt.savefig("learn_rate.png")
-        plt.show()
-        """
