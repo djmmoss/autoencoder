@@ -22,8 +22,8 @@
 // Network
 #include "data/net.h"
 
-// FFT W
-#include "data/fft_w.h"
+// FFT
+#include "data/fft.h"
 
 // Biases
 #include "data/b_l2.h"
@@ -248,195 +248,6 @@ void nn(interface_t in[LAYER_1],
 
 }
 
-template<int N, int LOG_N, int STRIDE>
-void fft( cplx pfw[N], cplx in[N], interface_t out[N*2]) {
-    #pragma HLS PIPELINE II=1 enable_flush
-    unsigned int stage, block, j, iw=0;
-    unsigned int pa, pb, qa, qb;
-    unsigned int strd, edirts;
-    cplx ft1a, ft1b, ft2a, ft2b, ft3a, ft3b;
-
-    cplx pfs[N];
-
-    for (int i = 0; i < N; i++) {
-        #pragma HLS UNROLL
-        pfs[i].re = in[i].re;
-        pfs[i].im = in[i].im;
-    }
-    //DIF FFT
-    /*
-    strd = STRIDE;
-    edirts = 1;
-    for( stage=0; stage<LOG_N-2; stage++ ) {
-        for( block=0; block<N; block+=strd*2 ) {
-            #pragma HLS UNROLL
-            pa = block;
-            pb = block + strd/2;
-            qa = block + strd;
-            qb = block + strd/2 + strd;
-            iw = 0;
-            for( j=0; j < strd/2; j++ ) { //2bufflies/loop
-                #pragma HLS UNROLL
-                //add
-                ft1a.re = pfs[pa+j].re + pfs[qa+j].re;
-                ft1a.im = pfs[pa+j].im + pfs[qa+j].im;
-                ft1b.re = pfs[pb+j].re + pfs[qb+j].re;
-                ft1b.im = pfs[pb+j].im + pfs[qb+j].im;
-                //sub
-                ft2a.re = pfs[pa+j].re - pfs[qa+j].re;
-                ft2a.im = pfs[pa+j].im - pfs[qa+j].im;
-                ft2b.re = pfs[pb+j].re - pfs[qb+j].re;
-                ft2b.im = pfs[pb+j].im - pfs[qb+j].im;
-                pfs[pa+j].re = ft1a.re; //store adds
-                pfs[pa+j].im = ft1a.im; //store adds
-                pfs[pb+j].re = ft1b.re;
-                pfs[pb+j].im = ft1b.im;
-                //cmul
-                pfs[qa+j].re = ft2a.re * pfw[iw].re - ft2a.im * pfw[iw].im;
-                pfs[qa+j].im = ft2a.re * pfw[iw].im + ft2a.im * pfw[iw].re;
-                //twiddled cmul
-                pfs[qb+j].re = ft2b.re * pfw[iw].im + ft2b.im * pfw[iw].re;
-                pfs[qb+j].im = -ft2b.re * pfw[iw].re + ft2b.im * pfw[iw].im;
-                iw += edirts;
-            }
-        }
-        strd = strd>>1;
-        edirts = edirts<<1;
-    }
-    */
-        for( block=0; block<N; block+=STRIDE*2 ) {
-            #pragma HLS UNROLL
-            pa = block;
-            pb = block + STRIDE/2;
-            qa = block + STRIDE;
-            qb = block + STRIDE/2 + STRIDE;
-            iw = 0;
-            for( j=0; j < STRIDE/2; j++ ) { //2bufflies/loop
-                #pragma HLS UNROLL
-                //add
-                ft1a.re = pfs[pa+j].re + pfs[qa+j].re;
-                ft1a.im = pfs[pa+j].im + pfs[qa+j].im;
-                ft1b.re = pfs[pb+j].re + pfs[qb+j].re;
-                ft1b.im = pfs[pb+j].im + pfs[qb+j].im;
-                //sub
-                ft2a.re = pfs[pa+j].re - pfs[qa+j].re;
-                ft2a.im = pfs[pa+j].im - pfs[qa+j].im;
-                ft2b.re = pfs[pb+j].re - pfs[qb+j].re;
-                ft2b.im = pfs[pb+j].im - pfs[qb+j].im;
-                pfs[pa+j] = ft1a; //store adds
-                pfs[pb+j] = ft1b;
-                //cmul
-                pfs[qa+j].re = ft2a.re * pfw[iw].re - ft2a.im * pfw[iw].im;
-                pfs[qa+j].im = ft2a.re * pfw[iw].im + ft2a.im * pfw[iw].re;
-                //twiddled cmul
-                pfs[qb+j].re = ft2b.re * pfw[iw].im + ft2b.im * pfw[iw].re;
-                pfs[qb+j].im = -ft2b.re * pfw[iw].re + ft2b.im * pfw[iw].im;
-                iw += 1;//edirts;
-            }
-        }
-        for( block=0; block<N; block+=(STRIDE>>1)*2 ) {
-            #pragma HLS UNROLL
-            pa = block;
-            pb = block + (STRIDE>>1)/2;
-            qa = block + (STRIDE>>1);
-            qb = block + (STRIDE>>1)/2 + (STRIDE>>1);
-            iw = 0;
-            for( j=0; j < (STRIDE>>1)/2; j++ ) { //2bufflies/loop
-                #pragma HLS UNROLL
-                //add
-                ft1a.re = pfs[pa+j].re + pfs[qa+j].re;
-                ft1a.im = pfs[pa+j].im + pfs[qa+j].im;
-                ft1b.re = pfs[pb+j].re + pfs[qb+j].re;
-                ft1b.im = pfs[pb+j].im + pfs[qb+j].im;
-                //sub
-                ft2a.re = pfs[pa+j].re - pfs[qa+j].re;
-                ft2a.im = pfs[pa+j].im - pfs[qa+j].im;
-                ft2b.re = pfs[pb+j].re - pfs[qb+j].re;
-                ft2b.im = pfs[pb+j].im - pfs[qb+j].im;
-                pfs[pa+j] = ft1a; //store adds
-                pfs[pb+j] = ft1b;
-                //cmul
-                pfs[qa+j].re = ft2a.re * pfw[iw].re - ft2a.im * pfw[iw].im;
-                pfs[qa+j].im = ft2a.re * pfw[iw].im + ft2a.im * pfw[iw].re;
-                //twiddled cmul
-                pfs[qb+j].re = ft2b.re * pfw[iw].im + ft2b.im * pfw[iw].re;
-                pfs[qb+j].im = -ft2b.re * pfw[iw].re + ft2b.im * pfw[iw].im;
-                iw += (1<<1);//edirts;
-            }
-        }
-    /*
-        for( block=0; block<N; block+=(STRIDE>>2)*2 ) {
-            #pragma HLS UNROLL
-            pa = block;
-            pb = block + (STRIDE>>2)/2;
-            qa = block + (STRIDE>>2);
-            qb = block + (STRIDE>>2)/2 + (STRIDE>>2);
-            iw = 0;
-            for( j=0; j < (STRIDE>>2)/2; j++ ) { //2bufflies/loop
-                #pragma HLS UNROLL
-                //add
-                ft1a.re = pfs[pa+j].re + pfs[qa+j].re;
-                ft1a.im = pfs[pa+j].im + pfs[qa+j].im;
-                ft1b.re = pfs[pb+j].re + pfs[qb+j].re;
-                ft1b.im = pfs[pb+j].im + pfs[qb+j].im;
-                //sub
-                ft2a.re = pfs[pa+j].re - pfs[qa+j].re;
-                ft2a.im = pfs[pa+j].im - pfs[qa+j].im;
-                ft2b.re = pfs[pb+j].re - pfs[qb+j].re;
-                ft2b.im = pfs[pb+j].im - pfs[qb+j].im;
-                pfs[pa+j] = ft1a; //store adds
-                pfs[pb+j] = ft1b;
-                //cmul
-                pfs[qa+j].re = ft2a.re * pfw[iw].re - ft2a.im * pfw[iw].im;
-                pfs[qa+j].im = ft2a.re * pfw[iw].im + ft2a.im * pfw[iw].re;
-                //twiddled cmul
-                pfs[qb+j].re = ft2b.re * pfw[iw].im + ft2b.im * pfw[iw].re;
-                pfs[qb+j].im = -ft2b.re * pfw[iw].re + ft2b.im * pfw[iw].im;
-                iw += (1<<2);//edirts;
-            }
-        }
-    */
-    //last two stages
-    for( j=0; j<N; j+=4 ) {
-        #pragma HLS UNROLL
-        //upper two
-        ft1a.re = pfs[j ].re + pfs[j+2].re;
-        ft1a.im = pfs[j ].im + pfs[j+2].im;
-        ft1b.re = pfs[j+1].re + pfs[j+3].re;
-        ft1b.im = pfs[j+1].im + pfs[j+3].im;
-        ft2a.re = ft1a.re + ft1b.re;
-        ft2a.im = ft1a.im + ft1b.im;
-        ft2b.re = ft1a.re - ft1b.re;
-        ft2b.im = ft1a.im - ft1b.im;
-        //lower two
-        //notwiddle
-        ft3a.re = pfs[j].re - pfs[j+2].re;
-        ft3a.im = pfs[j].im - pfs[j+2].im;
-        //twiddle
-        ft3b.re = pfs[j+1].im - pfs[j+3].im;
-        ft3b.im = -pfs[j+1].re + pfs[j+3].re;
-        //store
-        pfs[j ].re = ft2a.re;
-        pfs[j ].im = ft2a.im;
-        pfs[j+1].re = ft2b.re;
-        pfs[j+1].im = ft2b.im;
-        pfs[j+2].re = ft3a.re + ft3b.re;
-        pfs[j+2].im = ft3a.im + ft3b.im;
-        pfs[j+3].re = ft3a.re - ft3b.re;
-        pfs[j+3].im = ft3a.im - ft3b.im;
-    }
-
-    for (int i = 0; i < N; i++) {
-        #pragma HLS UNROLL
-        interface_t tmp1, tmp2;
-        tmp1 = pfs[i].re;
-        tmp2 = pfs[i].im;
-        out[i] = tmp1;
-        out[N+i] = tmp2;
-    }
-}
-
-
 // AXI-Stream port type is compatible with pointer, reference, & array input / ouputs only
 // See UG902 Vivado High Level Synthesis guide (2014.4) pg 157 Figure 1-49
 void auto_enc(
@@ -494,7 +305,7 @@ void auto_enc(
     windower<LAYER_1/2>(data.read(), w_out);
 
     cplx fft_in[LAYER_1/2] = {0};
-    interface_t fft_out[LAYER_1];
+    cplx fft_out[LAYER_1/2];
     #pragma HLS ARRAY_PARTITION variable=fft_in complete dim=1
     #pragma HLS ARRAY_PARTITION variable=fft_w complete dim=1
     #pragma HLS ARRAY_PARTITION variable=fft_out complete dim=1
@@ -505,7 +316,7 @@ void auto_enc(
         fft_in[i].im = w_out[i].im;
     }
 
-    fft<16, 4, 8>(fft_w, fft_in, fft_out);
+    fft(fft_in, fft_out);
 
     interface_t nn_in[LAYER_1] = {0};
     interface_t out[LAYER_1] = {0};
@@ -514,9 +325,10 @@ void auto_enc(
     #pragma HLS ARRAY_PARTITION variable=out complete dim=1
     #pragma HLS ARRAY_PARTITION variable=ref complete dim=1
 
-    for (int i = 0; i < LAYER_1; i++) {
+    for (int i = 0; i < LAYER_1/2; i++) {
         #pragma HLS UNROLL
-        nn_in[i] = fft_out[i];
+        nn_in[i] = fft_out[i].re;
+        nn_in[(LAYER_1/2)+i] = fft_out[i].im;
     }
 
     nn(nn_in, out, ref, p_w_l2, p_w_l3, p_w_l4, p_w_l5, p_b_l2, p_b_l3, p_b_l4, p_b_l5);

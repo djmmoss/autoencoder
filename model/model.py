@@ -108,12 +108,11 @@ with tf.Session() as sess:
         print_weights(data_path, n_weights)
         print_biases(data_path, n_biases)
         print_network(data_path, Layer_1, Layer_2, Layer_3)
-        print_fft_w(data_path, int(Layer_1/2))
+        print_fft(data_path, int(Layer_1/2), do_fft)
 
         p_pred = sess.run([pred], feed_dict={x: data})[0]
         baseline = np.mean(np.sum(np.square(p_pred - data), 1))
 
-"""
         diff = int(Layer_1/2)
         t = np.arange(N) / float(fs)
         t = t[:-diff]
@@ -288,4 +287,3 @@ with tf.Session() as sess:
         plt.tight_layout()
         plt.savefig("results/sar_noise.pdf", format="pdf")
         show()
-"""

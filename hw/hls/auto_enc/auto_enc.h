@@ -27,21 +27,19 @@
 
 #define W_WIDTH 16
 #define I_WIDTH 5
+typedef ap_fixed<W_WIDTH,I_WIDTH,AP_RND, AP_SAT> interface_t;
+
+typedef ap_fixed<32,10,AP_RND,AP_SAT> accum_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> weight_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> bias_t;
+
+typedef ap_fixed<16,7,AP_RND,AP_SAT> layer1_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> layer2_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> layer3_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> layer4_t;
+typedef ap_fixed<16,7,AP_RND,AP_SAT> layer5_t;
+
 /*
-typedef ap_fixed<W_WIDTH,I_WIDTH> interface_t;
-
-typedef ap_fixed<32,10> accum_t;
-typedef ap_fixed<16,5> weight_t;
-typedef ap_fixed<16,5> bias_t;
-
-typedef ap_fixed<16,5> layer1_t;
-typedef ap_fixed<16,5> layer2_t;
-typedef ap_fixed<16,5> layer3_t;
-typedef ap_fixed<16,5> layer4_t;
-typedef ap_fixed<16,5> layer5_t;
-
-*/
-
 typedef float interface_t;
 typedef float accum_t;
 typedef float weight_t;
@@ -53,6 +51,7 @@ typedef float layer3_t;
 typedef float layer4_t;
 typedef float layer5_t;
 
+*/
 typedef struct comp {
     interface_t re;
     interface_t im;
