@@ -307,7 +307,6 @@ void auto_enc(
     cplx fft_in[LAYER_1/2] = {0};
     cplx fft_out[LAYER_1/2];
     #pragma HLS ARRAY_PARTITION variable=fft_in complete dim=1
-    #pragma HLS ARRAY_PARTITION variable=fft_w complete dim=1
     #pragma HLS ARRAY_PARTITION variable=fft_out complete dim=1
 
     for (int i = 0; i < LAYER_1/2; i++) {
