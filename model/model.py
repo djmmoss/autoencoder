@@ -22,7 +22,7 @@ Layer_3 = 8
 fs = 5e3
 N = int(1e3)
 amp = 1
-do_fft = False
+do_fft = True
 
 # Synthetic Data
 i_s, q_s = carrier(amp, fs, N)

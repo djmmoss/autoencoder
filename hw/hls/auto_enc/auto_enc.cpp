@@ -249,7 +249,7 @@ void nn(interface_t in[LAYER_1],
 }
 
 template<int N, int LOG_N, int STRIDE>
-void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
+void fft( cplx pfw[N], cplx in[N], interface_t out[N*2]) {
     #pragma HLS PIPELINE II=1 enable_flush
     unsigned int stage, block, j, iw=0;
     unsigned int pa, pb, qa, qb;
@@ -304,7 +304,6 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
         edirts = edirts<<1;
     }
     */
-    /*
         for( block=0; block<N; block+=STRIDE*2 ) {
             #pragma HLS UNROLL
             pa = block;
@@ -365,6 +364,7 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
                 iw += (1<<1);//edirts;
             }
         }
+    /*
         for( block=0; block<N; block+=(STRIDE>>2)*2 ) {
             #pragma HLS UNROLL
             pa = block;
@@ -396,7 +396,6 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
             }
         }
     */
-    /*
     //last two stages
     for( j=0; j<N; j+=4 ) {
         #pragma HLS UNROLL
@@ -426,7 +425,7 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
         pfs[j+3].re = ft3a.re - ft3b.re;
         pfs[j+3].im = ft3a.im - ft3b.im;
     }
-    */
+
     for (int i = 0; i < N; i++) {
         #pragma HLS UNROLL
         interface_t tmp1, tmp2;
@@ -518,7 +517,6 @@ void auto_enc(
     for (int i = 0; i < LAYER_1; i++) {
         #pragma HLS UNROLL
         nn_in[i] = fft_out[i];
-        //ref[i] = fft_out[i];
     }
 
     nn(nn_in, out, ref, p_w_l2, p_w_l3, p_w_l4, p_w_l5, p_b_l2, p_b_l3, p_b_l4, p_b_l5);
