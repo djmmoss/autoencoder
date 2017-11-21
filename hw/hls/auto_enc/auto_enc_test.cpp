@@ -112,15 +112,13 @@ int read_file_1D_cplx(const char * filename, const char * filename2, dataType da
 		   } else {
 			   return -2;
 		   }
-	   }
-	   fclose(fp);
-	   for (int ii = 0; ii < samples; ii++){
 		   if (fscanf(fp2, "%f\n", &newval) != 0){
 			   data[ii].im = newval;
 		   } else {
 			   return -2;
 		   }
 	   }
+	   fclose(fp);
 	   fclose(fp2);
 	   return 0;
 }
@@ -213,10 +211,10 @@ int main(int argc, char **argv)
       result[isample] = curr_data;
 
   	  // Print result vector
-      if (isample > (LAYER_1+1)) {
+      if (isample > (LAYER_1/2+1)) {
           float err;
-          err = (float) curr_data - expected[isample-LAYER_1+1];
-          std::cout << " Expected: " << expected[isample-LAYER_1+1] << "   Received: " << curr_data << "  ErrVal: " << err << std::endl;
+          err = (float) curr_data - expected[isample-LAYER_1/2+1];
+          std::cout << " Expected: " << expected[isample-LAYER_1/2+1] << "   Received: " << curr_data << "  ErrVal: " << err << std::endl;
           //err = curr_data - expected[isample-LAYER_1+1];
           //std::cout << " Expected: " << expected[isample-LAYER_1+1] << "   Received: " << curr_data << "  ErrVal: " << err << std::endl;
           if (abs(err) > 0.5) err_cnt++;

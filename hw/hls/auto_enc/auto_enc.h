@@ -27,7 +27,7 @@
 
 #define W_WIDTH 16
 #define I_WIDTH 5
-
+/*
 typedef ap_fixed<W_WIDTH,I_WIDTH> interface_t;
 
 typedef ap_fixed<32,10> accum_t;
@@ -40,8 +40,8 @@ typedef ap_fixed<16,5> layer3_t;
 typedef ap_fixed<16,5> layer4_t;
 typedef ap_fixed<16,5> layer5_t;
 
+*/
 
-/*
 typedef float interface_t;
 typedef float accum_t;
 typedef float weight_t;
@@ -52,7 +52,6 @@ typedef float layer2_t;
 typedef float layer3_t;
 typedef float layer4_t;
 typedef float layer5_t;
-*/
 
 typedef struct comp {
     interface_t re;

@@ -12,8 +12,8 @@ def make_windows(i, q, window_size, do_fft=True):
         return make_iq_windows(i, q, window_size)
 
 def make_iq_windows(i, q, window_size):
-    i_data = make_data(i_s, window_size)
-    q_data = make_data(q_s, window_size)
+    i_data = make_data(i, window_size)
+    q_data = make_data(q, window_size)
     return np.concatenate((i_data, q_data), axis=1)
 
 
@@ -32,14 +32,14 @@ def make_fft_windows(i, q, window_size):
 
 
 def plot_results(t, f, s, data, l2norm, filename, do_fft=True):
-       
+
         fontsize = 12
         plt.close('all')
         fig = plt.figure()
 
         ax1 = plt.subplot(211)
         ax2 = plt.subplot(212)
-       
+
         if do_fft:
             norm = colors.Normalize(vmin = np.nanmin(data), vmax = np.nanmax(data))
             ax1.pcolormesh(t, f, data.T, norm=norm, cmap=cm.inferno)
@@ -58,8 +58,8 @@ def plot_results(t, f, s, data, l2norm, filename, do_fft=True):
         ax2.set_xlabel('Time', fontsize=fontsize)
         ax2.set_ylabel('L2-Norm', fontsize=fontsize)
         ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        plt.tight_layout()   
-    
+        plt.tight_layout()
+
         plt.savefig(filename, format='png')
         plt.show()
 

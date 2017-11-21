@@ -22,7 +22,7 @@ Layer_3 = 8
 fs = 5e3
 N = int(1e3)
 amp = 1
-do_fft = True
+do_fft = False
 
 # Synthetic Data
 i_s, q_s = carrier(amp, fs, N)
@@ -61,7 +61,6 @@ x = tf.placeholder(tf.float32, [None, Layer_1])
 
 y = tf.placeholder(tf.float32, [None, Layer_1])
 
-
 # Layer 2
 a_l2 = tf.matmul(x, n_weights["w_l2"]) + n_biases["b_l2"]
 r_l2 = tf.nn.relu(a_l2)
@@ -98,9 +97,9 @@ with tf.Session() as sess:
                         loss_rate.append(p_train_val[0])
                 train_step.run(feed_dict={x: x_train, y: y_train})
 
-        p_pred_n = sess.run([pred], feed_dict={x: x_test})[0]
-        print("MSE(Test Set): ", np.mean(np.square(p_pred_n - y_test)))
-        l2norm = np.sum(np.square(p_pred_n - x_test), 1)
+        p_pred_n = sess.run([pred], feed_dict={x: data})[0]
+        print("MSE(Test Set): ", np.mean(np.square(p_pred_n - data)))
+        l2norm = np.sum(np.square(p_pred_n - data), 1)
 
         data_path = "data/"
         np.savetxt(data_path + 'data_i.out', i_s, delimiter=',')

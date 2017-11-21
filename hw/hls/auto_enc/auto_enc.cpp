@@ -263,7 +263,6 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
         pfs[i].re = in[i].re;
         pfs[i].im = in[i].im;
     }
-
     //DIF FFT
     /*
     strd = STRIDE;
@@ -305,6 +304,7 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
         edirts = edirts<<1;
     }
     */
+    /*
         for( block=0; block<N; block+=STRIDE*2 ) {
             #pragma HLS UNROLL
             pa = block;
@@ -365,7 +365,6 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
                 iw += (1<<1);//edirts;
             }
         }
-    /*
         for( block=0; block<N; block+=(STRIDE>>2)*2 ) {
             #pragma HLS UNROLL
             pa = block;
@@ -397,6 +396,7 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
             }
         }
     */
+    /*
     //last two stages
     for( j=0; j<N; j+=4 ) {
         #pragma HLS UNROLL
@@ -426,7 +426,7 @@ void fft( cplx pfw[N], cplx in[N], interface_t out[N]) {
         pfs[j+3].re = ft3a.re - ft3b.re;
         pfs[j+3].im = ft3a.im - ft3b.im;
     }
-
+    */
     for (int i = 0; i < N; i++) {
         #pragma HLS UNROLL
         interface_t tmp1, tmp2;
