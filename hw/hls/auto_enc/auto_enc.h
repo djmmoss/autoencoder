@@ -24,7 +24,6 @@
 #include "ap_int.h"
 #include "ap_fixed.h"
 #include "hls_stream.h"
-#include "hls_half.h"
 
 #define W_WIDTH 16
 #define I_WIDTH 5

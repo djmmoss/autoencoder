@@ -11,7 +11,7 @@ add_files -tb data
 open_solution -reset "solution1"
 set_part {xc7k410tffg900-2}
 create_clock -period 5 -name default
-#csim_design
+csim_design
 csynth_design
 #cosim_design
 # export_design -format ip_catalog
